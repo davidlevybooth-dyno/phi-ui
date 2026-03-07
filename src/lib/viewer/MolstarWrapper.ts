@@ -141,13 +141,13 @@ function PlddtColorTheme(
     // "group" granularity — one colour per residue group (all atoms of a
     // residue share the same representative atom index via Location).
     granularity: "group" as const,
-    color: (location: StructureElement.Location) => {
+    color: ((location: StructureElement.Location) => {
       if (!Unit.isAtomic(location.unit)) return Color(0xaaaaaa);
       const biso = location.unit.model.atomicConformation.B_iso_or_equiv;
       if (!biso.isDefined) return Color(0xaaaaaa);
       // location.element is the model-level atom index — direct column lookup.
       return plddtToColor(biso.value(location.element));
-    },
+    }) as ColorTheme<PlddtThemeParams>["color"],
     props,
     description: "pLDDT confidence from B-factor (AF2/ESMFold)",
   };

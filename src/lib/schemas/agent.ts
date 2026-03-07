@@ -19,8 +19,8 @@ export const RunStatusResponseSchema = z.object({
   status: RunStatusEnum,
   current_stage: z.string().optional(),
   progress: RunProgressSchema.optional(),
-  plan: z.record(z.unknown()).optional(),
-  budget: z.record(z.unknown()).optional(),
+  plan: z.record(z.string(), z.unknown()).optional(),
+  budget: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const CreateRunResponseSchema = z.object({
