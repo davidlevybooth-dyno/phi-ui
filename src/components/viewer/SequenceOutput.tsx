@@ -1,5 +1,7 @@
 "use client";
 
+import { type DesignedSequence } from "@/lib/models-data";
+
 /**
  * SequenceOutput — renders designed sequences with amino-acid-type colouring.
  *
@@ -51,15 +53,11 @@ const CLASS_COLOR: Record<AaClass, string> = {
   other:       "",
 };
 
-export interface SequenceEntry {
-  label: string;
-  sequence: string;
-  score?: number;
-  recovery?: number;
-}
+// Re-export canonical type so consumers import from one place.
+export type { DesignedSequence as SequenceEntry } from "@/lib/models-data";
 
 interface Props {
-  sequences: SequenceEntry[];
+  sequences: DesignedSequence[];
 }
 
 function ColouredSequenceLine({ line }: { line: string }) {
@@ -77,7 +75,7 @@ function ColouredSequenceLine({ line }: { line: string }) {
   );
 }
 
-function SequenceBlock({ entry }: { entry: SequenceEntry }) {
+function SequenceBlock({ entry }: { entry: DesignedSequence }) {
   const seq = entry.sequence;
   const lines: string[] = [];
   for (let i = 0; i < seq.length; i += RESIDUES_PER_LINE) {

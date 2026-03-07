@@ -17,7 +17,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTheme } from "next-themes";
 import { Loader2, FileDown } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { MolstarWrapper } from "@/lib/viewer/MolstarWrapper";
 
 // Real AF2 multimer prediction (GB1 + peptide, 56+20 residues).
@@ -265,18 +264,22 @@ export function StructureViewer({
         </div>
       )}
 
-      {/* Footer bar — pLDDT legend or chain label + disabled download */}
+      {/* Footer bar — pLDDT legend or chain label + download link */}
       {structureReady && (
         <div className="px-4 py-2 border-t flex items-center justify-between gap-3 flex-wrap">
           {colorMode === "plddt" ? (
             <PlddtLegend />
           ) : (
-            <span className="text-xs text-muted-foreground">Mock result — cached AF2 prediction</span>
+            <span className="text-xs text-muted-foreground">Mock result — cached prediction</span>
           )}
-          <Button variant="outline" size="sm" className="gap-1.5" disabled>
+          <a
+            href={mockUrl}
+            download
+            className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium bg-background hover:bg-muted transition-colors"
+          >
             <FileDown className="size-3.5" />
-            Download CIF
-          </Button>
+            {`Download ${mockUrl.split(".").pop()?.toUpperCase() ?? "file"}`}
+          </a>
         </div>
       )}
     </div>

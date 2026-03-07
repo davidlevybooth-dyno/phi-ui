@@ -23,6 +23,29 @@ export interface MockOutput {
   json: Record<string, unknown>;
 }
 
+export interface DesignedSequence {
+  label: string;
+  sequence: string;
+  score?: number;
+  recovery?: number;
+}
+
+/**
+ * Extract designed sequences from a ProteinMPNN-style mock output.
+ * Centralises the shape assumption so callers don't need unsafe casts.
+ * Returns [] for any model whose output doesn't include a sequences array.
+ */
+export function getDesignedSequences(output: MockOutput): DesignedSequence[] {
+  const metrics = output.json.metrics;
+  if (typeof metrics !== "object" || metrics === null) return [];
+  const seqs = (metrics as Record<string, unknown>).sequences;
+  if (!Array.isArray(seqs)) return [];
+  return seqs.filter(
+    (s): s is DesignedSequence =>
+      typeof s === "object" && s !== null && typeof (s as DesignedSequence).sequence === "string"
+  );
+}
+
 export interface ModelCard {
   overview: string;
   useCases: string[];
@@ -70,6 +93,13 @@ export interface ModelInfo {
    * ESMFold cannot model protein–protein interactions.
    */
   singleChainOnly?: boolean;
+  /**
+   * Colour mode for the 3-D structure output viewer.
+   *   "plddt" — blue/orange AF2 confidence gradient (B-factor = pLDDT)
+   *   "chain" — muted palette per chain (default for non-confidence models)
+   * Undefined → no structure output tab.
+   */
+  outputColorMode?: "plddt" | "chain";
 }
 
 const BASE_URL = "https://design.dynotx.com/api/v1";
@@ -345,6 +375,7 @@ phi download JOB_ID --out ./af2_results
         "AlphaFold2 is developed by DeepMind (Google). Dyno runs it on cloud GPUs via a managed API. The model weights are released under Apache 2.0 / CC BY 4.0.",
     },
     mockStructureUrl: "/mock/af2-gb1.pdb",
+    outputColorMode: "plddt",
   },
   {
     id: "esmfold",
@@ -460,6 +491,7 @@ phi download JOB_ID --out ./esmfold_results
         "ESMFold is developed by Meta AI Research. Released under the MIT license.",
     },
     mockStructureUrl: "/mock/esmfold-gb1.pdb",
+    outputColorMode: "plddt",
     singleChainOnly: true,
   },
   {
@@ -759,7 +791,7 @@ phi download JOB_ID --out ./boltz_results
         "Boltz is developed by Recursion / MIT. Released under the MIT license.",
     },
     mockStructureUrl: "/mock/esmfold-gb1.pdb",
-    singleChainOnly: true,
+    outputColorMode: "plddt",
   },
   {
     id: "chai1",
@@ -869,7 +901,7 @@ phi download JOB_ID --out ./chai1_results
         "Chai-1 is developed by Chai Discovery. Released under the Apache 2.0 license.",
     },
     mockStructureUrl: "/mock/esmfold-gb1.pdb",
-    singleChainOnly: true,
+    outputColorMode: "plddt",
   },
   {
     id: "af2rank",

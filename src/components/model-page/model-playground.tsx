@@ -6,8 +6,8 @@ import { Copy, Check, Play, Loader2, Upload, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CodeHighlight } from "@/components/ui/code-highlight";
-import { type ModelInfo } from "@/lib/models-data";
-import { SequenceOutput, type SequenceEntry } from "@/components/viewer/SequenceOutput";
+import { type ModelInfo, getDesignedSequences } from "@/lib/models-data";
+import { SequenceOutput } from "@/components/viewer/SequenceOutput";
 
 // Dynamically imported with ssr:false — Molstar requires browser APIs
 const StructureViewer = dynamic(
@@ -230,18 +230,21 @@ function PdbUploadInput({
   onRun: () => void;
   running: boolean;
 }) {
+  // Capture before JSX so TypeScript narrows the type without a non-null assertion.
+  const examplePdb = model.examplePdb;
+
   return (
     <div className="p-4 space-y-4">
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
           <label className="text-xs font-medium">Input structure</label>
-          {model.examplePdb && (
+          {examplePdb && (
             <button
               type="button"
-              onClick={() => onFileChange(model.examplePdb!.label + ".pdb")}
+              onClick={() => onFileChange(examplePdb.label + ".pdb")}
               className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
             >
-              Load example: {model.examplePdb.label}
+              Load example: {examplePdb.label}
             </button>
           )}
         </div>
@@ -408,11 +411,7 @@ function SequencesPanel({
       </div>
     );
   }
-  const raw = (model.mockOutput.json as Record<string, unknown>)?.metrics;
-  const seqs: SequenceEntry[] = Array.isArray((raw as Record<string, unknown>)?.sequences)
-    ? ((raw as Record<string, unknown>).sequences as SequenceEntry[])
-    : [];
-  return <SequenceOutput sequences={seqs} />;
+  return <SequenceOutput sequences={getDesignedSequences(model.mockOutput)} />;
 }
 
 function MetricsPanel({
@@ -513,13 +512,10 @@ function JsonPanel({
 // Root component
 // ---------------------------------------------------------------------------
 
-// Models that output AF2-style pLDDT scores — use the blue/orange confidence palette.
-const PLDDT_COLOR_MODELS = new Set(["alphafold2", "esmfold", "boltz"]);
-
 export function ModelPlayground({ model }: { model: ModelInfo }) {
   const showStructureTab = model.inputType === "sequence";
   const showSequencesTab = model.id === "proteinmpnn";
-  const structureColorMode = PLDDT_COLOR_MODELS.has(model.id) ? "plddt" : "chain";
+  const structureColorMode = model.outputColorMode ?? "chain";
 
   const initialParams = Object.fromEntries(
     model.formFields.map((f) => [f.key, f.defaultValue ?? ""])
