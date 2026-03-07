@@ -1,50 +1,45 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
+import { AnimatePresence, motion } from "framer-motion";
+import { UserButton } from "@clerk/nextjs";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { AppSidebar } from "@/components/layout/app-sidebar";
-import { useAuth } from "@/lib/auth-context";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Footer } from "@/components/footer";
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const { user, loading } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push("/login");
-    }
-  }, [user, loading, router]);
-
-  if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="space-y-3">
-          <Skeleton className="h-4 w-48" />
-          <Skeleton className="h-4 w-36" />
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) return null;
+/**
+ * Dashboard layout — route protection is handled at the edge by clerkMiddleware()
+ * in src/middleware.ts. Unauthenticated requests never reach this component.
+ */
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
 
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset>
-        <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="h-4" />
-          <span className="text-sm text-muted-foreground">design.dynotx.com</span>
+      <SidebarInset className="flex flex-col min-h-screen">
+        <header className="flex h-12 shrink-0 items-center justify-between gap-2 border-b px-4">
+          <div className="flex items-center gap-2">
+            <SidebarTrigger className="-ml-1" />
+            <Separator orientation="vertical" className="h-4" />
+            <span className="text-sm text-muted-foreground">design.dynotx.com</span>
+          </div>
+          <UserButton />
         </header>
-        <main className="flex-1 overflow-auto p-6">{children}</main>
+        <AnimatePresence mode="wait">
+          <motion.main
+            key={pathname}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
+            className="flex-1 overflow-auto p-6"
+          >
+            {children}
+          </motion.main>
+        </AnimatePresence>
+        <Footer />
       </SidebarInset>
     </SidebarProvider>
   );

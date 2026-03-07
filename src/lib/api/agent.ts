@@ -1,4 +1,11 @@
-import { apiPost, apiGet, apiDelete, BASE_URL } from "./client";
+import { apiPost, apiGet, apiDelete, buildStreamUrl } from "./client";
+import {
+  RunStatusResponseSchema,
+  CreateRunResponseSchema,
+  type RunStatusResponse,
+} from "@/lib/schemas/agent";
+
+export type { RunStatusResponse };
 
 export interface DesignRequest {
   message: string;
@@ -12,20 +19,7 @@ export interface DesignResponse {
   metadata: Record<string, unknown>;
 }
 
-export type RunStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
-
-export interface RunStatusResponse {
-  run_id: string;
-  status: RunStatus;
-  current_stage?: string;
-  progress?: {
-    percent_complete: number;
-    current_step: string;
-    eta_seconds?: number | null;
-  };
-  plan?: Record<string, unknown>;
-  budget?: Record<string, unknown>;
-}
+export type RunStatus = RunStatusResponse["status"];
 
 const TERMINAL_STATUSES = new Set<RunStatus>(["completed", "failed", "cancelled"]);
 
@@ -34,11 +28,13 @@ export function isTerminalStatus(status: RunStatus): boolean {
 }
 
 export async function createRun(request: DesignRequest): Promise<{ run_id: string }> {
-  return apiPost<{ run_id: string }>("/runs", request);
+  const data = await apiPost<unknown>("/runs", request);
+  return CreateRunResponseSchema.parse(data);
 }
 
 export async function getRunStatus(runId: string): Promise<RunStatusResponse> {
-  return apiGet<RunStatusResponse>(`/runs/${runId}`);
+  const data = await apiGet<unknown>(`/runs/${runId}`);
+  return RunStatusResponseSchema.parse(data);
 }
 
 export async function getRunResult(runId: string): Promise<DesignResponse> {
@@ -49,9 +45,9 @@ export async function cancelRun(runId: string): Promise<{ status: string }> {
   return apiDelete<{ status: string }>(`/runs/${runId}`);
 }
 
-/** Returns a URL for SSE log streaming. Headers must be set by the caller (EventSource workaround). */
+/** Returns a URL for SSE log streaming. Credentials are embedded as query params (EventSource workaround). */
 export function getRunLogStreamUrl(runId: string): string {
-  return `${BASE_URL}/runs/${runId}/logs/stream`;
+  return buildStreamUrl(`/runs/${runId}/logs/stream`);
 }
 
 /**

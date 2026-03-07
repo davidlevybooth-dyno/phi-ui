@@ -1,0 +1,115 @@
+name: boltzgen
+description: Generative design of proteins and peptides using BoltzGen diffusion model
+category: design
+tags: [generative, design, diffusion, protein, peptide]
+
+biomodals_script: modal_boltzgen.py
+biomodals_function: boltzgen_run
+recommended_timeout: 120
+recommended_gpu: L40S
+
+# Tool capabilities for protocol planning and validation
+capabilities:
+  all_atom: true         # Generates all atoms, not just backbone
+  ligands: true          # Can design around ligands
+  speed: slow            # ~10-20 min per design
+  max_residues: 500
+  gpu_required: true
+  gpu_memory_gb: 48
+
+# Artifact schema - what this tool returns
+artifacts:
+  primary: structures    # Returns multiple structures per call
+  secondary: sequences   # Also generates sequences
+
+# Semantic parameter mappings for protocol abstraction
+semantic_mappings:
+  structure_input: yaml_str
+
+parameters:
+  yaml_str:
+    type: string
+    required: true
+    description: >
+      YAML design specification as string. Defines entities (protein sequences, files)
+      and constraints. Example: entities with protein sequences or file references.
+  
+  yaml_name:
+    type: string
+    required: true
+    description: >
+      Name of the YAML file (e.g., "design.yaml"). Used for file organization.
+  
+  additional_files:
+    type: dict
+    required: false
+    default: {}
+    description: >
+      Dictionary mapping relative paths to file contents (bytes) for files referenced
+      in the YAML (e.g., .cif structure files). Format: {"file.cif": bytes_content}
+  
+  protocol:
+    type: string
+    required: false
+    default: "protein-anything"
+    enum: ["protein-anything", "peptide-anything", "protein-small_molecule", "nanobody-anything"]
+    description: >
+      Design protocol:
+      - "protein-anything": General protein design
+      - "peptide-anything": Peptide design
+      - "protein-small_molecule": Protein with small molecule
+      - "nanobody-anything": Nanobody design
+  
+  num_designs:
+    type: integer
+    required: false
+    default: 10
+    description: >
+      Number of designs to generate. Typical range: 10-100.
+  
+  steps:
+    type: string
+    required: false
+    default: null
+    description: >
+      Specific pipeline steps to run (e.g., "design inverse_folding folding").
+      If not specified, runs full pipeline. Options: design, inverse_folding, folding.
+  
+  cache:
+    type: string
+    required: false
+    default: null
+    description: >
+      Custom cache directory path for model weights. If not specified, uses default.
+  
+  devices:
+    type: integer
+    required: false
+    default: null
+    description: >
+      Number of GPUs to use. If not specified, uses available GPUs.
+  
+  extra_args:
+    type: string
+    required: false
+    default: null
+    description: >
+      Additional CLI arguments as space-separated string for advanced options.
+  
+  upload_to_gcs:
+    type: boolean
+    required: false
+    default: true
+    description: Upload results to Google Cloud Storage
+  
+  gcs_bucket:
+    type: string
+    required: false
+    default: null
+    description: GCS bucket name for uploads
+  
+  run_id:
+    type: string
+    required: false
+    default: null
+    description: Unique identifier for this run

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
+import { motion } from "framer-motion";
 import {
   Briefcase,
   MessageSquare,
@@ -20,31 +21,44 @@ import { JobStatusBadge } from "@/components/shared/job-status-badge";
 import { listJobs } from "@/lib/api/jobs";
 import { useAuth } from "@/lib/auth-context";
 
+const statVariants = {
+  hidden: { opacity: 0, x: -8 },
+  visible: (i: number) => ({
+    opacity: 1,
+    x: 0,
+    transition: { duration: 0.35, ease: "easeOut" as const, delay: i * 0.08 },
+  }),
+};
+
 function StatCard({
   label,
   value,
   icon: Icon,
   loading,
+  index,
 }: {
   label: string;
   value: string | number;
   icon: React.ElementType;
   loading?: boolean;
+  index: number;
 }) {
   return (
-    <Card className="p-5 flex items-center gap-4">
-      <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted">
-        <Icon className="size-4" />
-      </div>
-      <div>
-        {loading ? (
-          <Skeleton className="h-6 w-12 mb-1" />
-        ) : (
-          <p className="text-2xl font-semibold leading-none">{value}</p>
-        )}
-        <p className="text-xs text-muted-foreground mt-1">{label}</p>
-      </div>
-    </Card>
+    <motion.div custom={index} variants={statVariants} initial="hidden" animate="visible">
+      <Card className="p-5 flex items-center gap-4">
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted">
+          <Icon className="size-4" />
+        </div>
+        <div>
+          {loading ? (
+            <Skeleton className="h-6 w-12 mb-1" />
+          ) : (
+            <p className="text-2xl font-semibold leading-none">{value}</p>
+          )}
+          <p className="text-xs text-muted-foreground mt-1">{label}</p>
+        </div>
+      </Card>
+    </motion.div>
   );
 }
 
@@ -66,48 +80,28 @@ export default function DashboardPage() {
           {user?.displayName ? `Welcome back, ${user.displayName.split(" ")[0]}` : "Dashboard"}
         </h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Protein binder scoring and filtering — grounded by experiment.
+          Upload binder sequences, run scoring models, apply metric filters, and download ranked candidates.
         </p>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <StatCard
-          label="Total jobs"
-          value={jobsData?.total_count ?? "—"}
-          icon={Briefcase}
-          loading={isLoading}
-        />
-        <StatCard
-          label="Running"
-          value={jobsData?.total_running ?? "—"}
-          icon={Loader2}
-          loading={isLoading}
-        />
-        <StatCard
-          label="Completed"
-          value={jobsData?.total_completed ?? "—"}
-          icon={CheckCircle2}
-          loading={isLoading}
-        />
-        <StatCard
-          label="Failed"
-          value={jobsData?.total_failed ?? "—"}
-          icon={XCircle}
-          loading={isLoading}
-        />
+        <StatCard index={0} label="Total jobs" value={jobsData?.total_count ?? "—"} icon={Briefcase} loading={isLoading} />
+        <StatCard index={1} label="Running" value={jobsData?.total_running ?? "—"} icon={Loader2} loading={isLoading} />
+        <StatCard index={2} label="Completed" value={jobsData?.total_completed ?? "—"} icon={CheckCircle2} loading={isLoading} />
+        <StatCard index={3} label="Failed" value={jobsData?.total_failed ?? "—"} icon={XCircle} loading={isLoading} />
       </div>
 
       {/* Quick actions */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Card className="p-5 flex flex-col gap-3">
+        <Card className="p-5 flex flex-col gap-3 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm">
           <div className="flex items-center gap-2">
             <MessageSquare className="size-4" />
-            <h2 className="text-sm font-medium">Start with the agent</h2>
+            <h2 className="text-sm font-medium">Design with the agent</h2>
           </div>
           <p className="text-sm text-muted-foreground">
-            Describe your protein design goal in natural language. The agent will
-            plan and execute the right scoring pipeline.
+            Describe your target and constraints in plain language. The agent selects
+            models, runs scoring, and surfaces the highest-confidence binders.
           </p>
           <Button asChild size="sm" className="w-fit gap-1.5">
             <Link href="/dashboard/agent">
@@ -116,18 +110,18 @@ export default function DashboardPage() {
             </Link>
           </Button>
         </Card>
-        <Card className="p-5 flex flex-col gap-3">
+        <Card className="p-5 flex flex-col gap-3 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm">
           <div className="flex items-center gap-2">
             <Activity className="size-4" />
-            <h2 className="text-sm font-medium">Submit a job directly</h2>
+            <h2 className="text-sm font-medium">Submit a scoring job</h2>
           </div>
           <p className="text-sm text-muted-foreground">
-            Use the API or the jobs interface to submit individual scoring runs
-            for AlphaFold2, ESMFold, ProteinMPNN, and more.
+            Upload a FASTA or PDB and run ESMFold, AlphaFold2, ProteinMPNN, or
+            Boltz directly — no agent required.
           </p>
           <Button asChild size="sm" variant="outline" className="w-fit gap-1.5">
             <Link href="/dashboard/jobs">
-              View jobs
+              Browse jobs
               <ArrowRight className="size-3.5" />
             </Link>
           </Button>
@@ -162,9 +156,9 @@ export default function DashboardPage() {
           ) : recentJobs.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <Briefcase className="size-8 text-muted-foreground/40 mb-3" />
-              <p className="text-sm text-muted-foreground">No jobs yet</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Submit your first scoring job to get started.
+              <p className="text-sm font-medium text-muted-foreground">No jobs yet</p>
+              <p className="text-xs text-muted-foreground mt-1 max-w-48">
+                Start the agent or submit a job to begin scoring your binder designs.
               </p>
             </div>
           ) : (

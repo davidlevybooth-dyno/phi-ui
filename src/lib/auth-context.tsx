@@ -1,65 +1,71 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, type ReactNode } from "react";
+import { useUser, useAuth as useClerkAuth, useClerk } from "@clerk/nextjs";
 import type { AuthUser } from "@/lib/auth/types";
-import { firebaseAuthService } from "@/lib/auth/firebase-provider";
 import { useSessionStore, useSettingsStore, getStoredCredentials } from "@/lib/stores/auth-store";
 import { configureCredentials } from "@/lib/api/credentials";
 
-// Wire the credentials seam once at module load time.
-// The API client reads live from stores; no re-configuration needed on sign-in.
+// Wire the credentials seam at module load. Every API call reads live from stores.
 configureCredentials(getStoredCredentials);
 
-// To swap auth backends: change this one import.
-const authService = firebaseAuthService;
+// To swap auth providers: change the hooks used in AuthProvider below.
+// All downstream code (components, hooks, pages) depends only on AuthContextValue.
 
 interface AuthContextValue {
   user: AuthUser | null;
   loading: boolean;
-  signInWithGoogle: () => Promise<void>;
-  signInWithEmail: (email: string, password: string) => Promise<void>;
-  registerWithEmail: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+function toAuthUser(clerkUser: NonNullable<ReturnType<typeof useUser>["user"]>): AuthUser {
+  return {
+    uid: clerkUser.id,
+    email: clerkUser.primaryEmailAddress?.emailAddress ?? null,
+    displayName: clerkUser.fullName,
+    photoURL: clerkUser.imageUrl,
+  };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user: clerkUser, isLoaded, isSignedIn } = useUser();
+  const { getToken } = useClerkAuth();
+  const { signOut: clerkSignOut } = useClerk();
   const { setApiKey } = useSessionStore();
   const { setUserId } = useSettingsStore();
 
   useEffect(() => {
-    return authService.onAuthStateChanged(async (authUser) => {
-      setUser(authUser);
-      if (authUser) {
-        // Temporary: use the ID token as the API key until /api/v1/auth/me is ready.
-        // See docs/backend-api-gaps.md — API Key Management endpoint.
-        const idToken = await authUser.getIdToken();
-        setApiKey(idToken);
-        setUserId(authUser.uid);
-      } else {
-        setApiKey(null);
-      }
-      setLoading(false);
-    });
-  }, [setApiKey, setUserId]);
+    if (!isSignedIn || !clerkUser) {
+      setApiKey(null);
+      return;
+    }
+
+    setUserId(clerkUser.id);
+
+    // Store a fresh Clerk session token in the credential store so the API client
+    // can read it synchronously. Clerk caches tokens for ~60s, so we refresh
+    // every 55s to ensure the stored token never expires between refreshes.
+    const refresh = async () => {
+      const token = await getToken();
+      setApiKey(token);
+    };
+
+    refresh();
+    const interval = setInterval(refresh, 55_000);
+    return () => clearInterval(interval);
+  }, [isSignedIn, clerkUser, getToken, setApiKey, setUserId]);
+
+  const user = isLoaded && clerkUser ? toAuthUser(clerkUser) : null;
+
+  const signOut = async () => {
+    setApiKey(null);
+    await clerkSignOut();
+  };
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        signInWithGoogle: authService.signInWithGoogle.bind(authService),
-        signInWithEmail: authService.signInWithEmail.bind(authService),
-        registerWithEmail: authService.registerWithEmail.bind(authService),
-        signOut: async () => {
-          await authService.signOut();
-          setApiKey(null);
-        },
-      }}
-    >
+    <AuthContext.Provider value={{ user, loading: !isLoaded, signOut }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiDelete, BASE_URL } from "./client";
+import { apiGet, apiPost, apiDelete, buildStreamUrl } from "./client";
 import {
   JobListResponseSchema,
   JobStatusResponseSchema,
@@ -38,9 +38,12 @@ export async function listJobs(opts?: {
   return JobListResponseSchema.parse(data);
 }
 
-export async function getJobStatus(jobId: string, includeAssets = false): Promise<JobStatusResponse> {
+export async function getJobStatus(
+  jobId: string,
+  opts?: { includeAssets?: boolean }
+): Promise<JobStatusResponse> {
   const data = await apiGet<unknown>(`/api/v1/jobs/${jobId}/status`, {
-    include_assets: includeAssets,
+    include_assets: opts?.includeAssets,
   });
   return JobStatusResponseSchema.parse(data);
 }
@@ -56,5 +59,5 @@ export async function batchSubmitJobs(requests: JobSubmitRequest[]) {
 }
 
 export function getJobLogStreamUrl(jobId: string): string {
-  return `${BASE_URL}/api/v1/jobs/${jobId}/logs/stream`;
+  return buildStreamUrl(`/api/v1/jobs/${jobId}/logs/stream`);
 }

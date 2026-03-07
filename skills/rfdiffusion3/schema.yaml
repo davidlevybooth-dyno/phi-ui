@@ -1,0 +1,115 @@
+name: rfdiffusion3
+description: "All-atom generative protein design using RFDiffusion3 for de novo generation, binder design, and motif scaffolding"
+category: design
+tags: [structure-generation, binder-design, motif-scaffolding, diffusion]
+
+biomodals_script: modal_rfdiffusion3.py
+biomodals_function: rfdiffusion3_generate
+recommended_timeout: 10800
+recommended_gpu: H100
+
+# Tool capabilities for protocol planning and validation
+capabilities:
+  all_atom: true         # Generates all atoms, not just backbone
+  hotspots: true         # Can specify hotspot residues
+  motif_scaffolding: true
+  binder_design: true    # Optimized for binder design
+  symmetric: false       # No symmetry support yet
+  speed: medium          # ~2-5 min per backbone
+  max_residues: 1200     # H100 limit
+  gpu_required: true
+  gpu_memory_gb: 80      # Defaults to H100
+
+# Artifact schema - what this tool returns
+artifacts:
+  primary: structures    # Returns multiple structures per call
+
+# Semantic parameter mappings for protocol abstraction
+semantic_mappings:
+  structure_input: target_pdb_gcs_uri
+  binder_length: length
+
+parameters:
+  length:
+    type: integer
+    required: false
+    description: "Backbone length for de novo generation"
+  
+  target_pdb_gcs_uri:
+    type: string
+    required: false
+    description: "GCS URI to target PDB file for binder design (e.g., gs://bucket/path/target.pdb). Preferred method."
+  
+  target_pdb:
+    type: string
+    required: false
+    description: "Target PDB content for binder design (DEPRECATED - use target_pdb_gcs_uri)"
+  
+  target_chain:
+    type: string
+    required: false
+    description: "Target chain ID for binder design (e.g., A)"
+  
+  hotspots:
+    type: array
+    items:
+      type: string
+    required: false
+    description: "List of hotspot residues for binder design (e.g., ['A45', 'A67', 'A89'])"
+  
+  motif_pdb_gcs_uri:
+    type: string
+    required: false
+    description: "GCS URI to motif PDB file for scaffolding (e.g., gs://bucket/path/motif.pdb). Preferred method."
+  
+  motif_pdb:
+    type: string
+    required: false
+    description: "Motif PDB content for scaffolding (DEPRECATED - use motif_pdb_gcs_uri)"
+  
+  motif_residues:
+    type: array
+    items:
+      type: string
+    required: false
+    description: "List of motif residue ranges (e.g., ['10-20', '45-55'])"
+  
+  num_designs:
+    type: integer
+    required: false
+    default: 10
+    description: "Number of designs to generate"
+  
+  inference_steps:
+    type: integer
+    required: false
+    default: 50
+    description: "Number of diffusion inference steps (higher = better quality but slower)"
+  
+  contigs:
+    type: string
+    required: false
+    description: "Contig specification string for advanced control"
+  
+  symmetry:
+    type: string
+    required: false
+    description: "Symmetry specification (e.g., C3, D2, C5)"
+  
+  upload_to_gcs:
+    type: boolean
+    required: false
+    default: true
+    description: "Upload generated structures to GCS"
+  
+  gcs_bucket:
+    type: string
+    required: false
+    default: null
+    description: "GCS bucket name for uploads"
+  
+  run_id:
+    type: string
+    required: false
+    default: null
+    description: "Unique identifier for this run"

@@ -1,0 +1,74 @@
+# Schema definition for RoseTTAFold3 structure prediction
+# This is the single source of truth for parameter validation
+
+name: rf3
+description: Structure prediction using RoseTTAFold3 (RF3)
+category: validation
+tags:
+  - structure-prediction
+  - rosettafold
+  - fast
+
+biomodals_script: modal_rf3.py
+biomodals_function: rf3_predict
+
+recommended_timeout: 600
+recommended_gpu: A100
+
+# Tool capabilities for protocol planning and validation
+capabilities:
+  multimer: true         # Supports complexes
+  nucleic_acids: true    # Supports DNA/RNA
+  speed: medium          # ~5-10 min per structure
+  accuracy: high
+  gpu_required: true
+  gpu_memory_gb: 40
+
+# Artifact schema - what this tool returns
+artifacts:
+  primary: structure     # Returns single structure per call (collected as "structures" in MAP)
+
+# Semantic parameter mappings for protocol abstraction
+semantic_mappings:
+  sequence_input: fasta_content
+  num_recycles: num_recycles
+
+parameters:
+  fasta_content:
+    type: string
+    required: true
+    description: FASTA file content as string with protein sequences
+
+  num_recycles:
+    type: integer
+    required: false
+    default: 3
+    min: 1
+    max: 10
+    description: Number of recycling iterations
+
+  num_models:
+    type: integer
+    required: false
+    default: 1
+    min: 1
+    max: 5
+    description: Number of models to generate
+
+  upload_to_gcs:
+    type: boolean
+    required: false
+    default: true
+    description: Upload results to Google Cloud Storage
+
+  gcs_bucket:
+    type: string
+    required: false
+    default: null
+    description: GCS bucket name for uploads
+
+  run_id:
+    type: string
+    required: false
+    default: null
+    description: Unique identifier for this run

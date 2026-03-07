@@ -3,7 +3,7 @@ import { persist } from "zustand/middleware";
 
 /**
  * In-memory only — never persisted.
- * API tokens are security-sensitive and expire (Firebase ID tokens ~1 hour).
+ * API tokens are security-sensitive. Clerk session tokens expire (~60s cache window).
  * Persisting them would cause stale-token 401s on the next visit.
  */
 interface SessionState {

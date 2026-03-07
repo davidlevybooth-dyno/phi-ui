@@ -1,0 +1,82 @@
+# Schema definition for ESMFold structure prediction
+# This is the single source of truth for parameter validation
+
+name: esmfold
+description: Fast protein structure prediction from sequence using ESMFold
+category: validation
+tags:
+  - structure-prediction
+  - folding
+  - validation
+  - fast
+  - confidence-scores
+
+biomodals_script: modal_esmfold.py
+biomodals_function: esmfold
+
+recommended_timeout: 120
+recommended_gpu: A100
+
+# Tool capabilities for protocol planning and validation
+capabilities:
+  multimer: false        # Single chain only
+  templates: false       # No template support
+  msa: false            # No MSA, uses protein language model
+  speed: fast           # ~1-2 min per structure
+  accuracy: medium      # Good for screening, less accurate than AF2
+  max_chains: 1         # Single chain only
+  gpu_required: true
+  gpu_memory_gb: 16
+
+# Artifact schema - what this tool returns
+artifacts:
+  primary: structure     # Returns single structure per call (collected as "structures" in MAP)
+
+# Semantic parameter mappings for protocol abstraction
+semantic_mappings:
+  sequence_input: fasta_str
+  num_recycles: num_recycles
+
+parameters:
+  fasta_str:
+    type: string
+    required: true
+    description: FASTA formatted sequence(s). Can contain single or multiple sequences.
+
+  fasta_name:
+    type: string
+    required: false
+    default: "sequences.fasta"
+    description: Name for the FASTA input (used for output file naming)
+
+  num_recycles:
+    type: integer
+    required: false
+    default: 3
+    min: 1
+    max: 10
+    description: Number of recycling iterations (more = potentially better quality, slower)
+
+  extract_confidence:
+    type: boolean
+    required: false
+    default: true
+    description: Extract per-residue pLDDT confidence scores
+
+  upload_to_gcs:
+    type: boolean
+    required: false
+    default: true
+    description: Upload results to Google Cloud Storage
+
+  gcs_bucket:
+    type: string
+    required: false
+    default: null
+    description: GCS bucket name for uploads
+
+  run_id:
+    type: string
+    required: false
+    default: null
+    description: Unique identifier for this run

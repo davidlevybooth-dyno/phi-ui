@@ -1,8 +1,12 @@
 import { getApiCredentials } from "./credentials";
 
+const FETCH_TIMEOUT_MS = 30_000;
+
+// Single source of truth for the API base URL.
+// Override via NEXT_PUBLIC_API_BASE_URL for local dev or staging.
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ??
-  "https://workflow-planner-api-staging-1094699856932.us-central1.run.app";
+  "https://design.dynotx.com";
 
 export class ApiError extends Error {
   constructor(
@@ -40,6 +44,14 @@ async function handleResponse<T>(res: Response): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  return fetch(url, { ...init, signal: controller.signal }).finally(() =>
+    clearTimeout(timer)
+  );
+}
+
 export async function apiGet<T>(
   path: string,
   params?: Record<string, string | number | boolean | undefined>
@@ -50,12 +62,15 @@ export async function apiGet<T>(
       if (v !== undefined) url.searchParams.set(k, String(v));
     });
   }
-  const res = await fetch(url.toString(), { method: "GET", headers: buildHeaders() });
+  const res = await fetchWithTimeout(url.toString(), {
+    method: "GET",
+    headers: buildHeaders(),
+  });
   return handleResponse<T>(res);
 }
 
 export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
+  const res = await fetchWithTimeout(`${BASE_URL}${path}`, {
     method: "POST",
     headers: buildHeaders(),
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -64,7 +79,7 @@ export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
 }
 
 export async function apiPut<T>(path: string, body?: unknown): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
+  const res = await fetchWithTimeout(`${BASE_URL}${path}`, {
     method: "PUT",
     headers: buildHeaders(),
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -73,11 +88,25 @@ export async function apiPut<T>(path: string, body?: unknown): Promise<T> {
 }
 
 export async function apiDelete<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
+  const res = await fetchWithTimeout(`${BASE_URL}${path}`, {
     method: "DELETE",
     headers: buildHeaders(),
   });
   return handleResponse<T>(res);
 }
 
-export { BASE_URL };
+/**
+ * Builds a URL for SSE streaming endpoints.
+ * EventSource does not support custom headers; auth params must be in the URL.
+ * Only use this for streaming — all other requests go through apiGet/apiPost.
+ */
+export function buildStreamUrl(path: string, extraParams?: Record<string, string>): string {
+  const { apiKey, orgId } = getApiCredentials();
+  const url = new URL(`${BASE_URL}${path}`);
+  if (apiKey) url.searchParams.set("x_api_key", apiKey);
+  if (orgId) url.searchParams.set("org_id", orgId);
+  if (extraParams) {
+    Object.entries(extraParams).forEach(([k, v]) => url.searchParams.set(k, v));
+  }
+  return url.toString();
+}

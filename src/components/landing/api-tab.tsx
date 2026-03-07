@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Copy, Check, ChevronDown, ChevronUp } from "lucide-react";
+import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,7 +20,7 @@ function ModelCard({ model }: { model: ModelInfo }) {
   };
 
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm">
       <button
         onClick={() => setExpanded((v) => !v)}
         className="w-full flex items-start justify-between p-5 text-left hover:bg-muted/30 transition-colors"
@@ -34,11 +35,6 @@ function ModelCard({ model }: { model: ModelInfo }) {
               <Badge variant="secondary" className="text-xs font-normal">
                 {model.license}
               </Badge>
-              {model.costPerSample && (
-                <span className="text-xs text-muted-foreground">
-                  {model.costPerSample} / sample
-                </span>
-              )}
             </div>
             <p className="text-sm text-muted-foreground pr-4">{model.description}</p>
           </div>
@@ -95,7 +91,12 @@ function ModelCard({ model }: { model: ModelInfo }) {
 
 export function ApiTab() {
   return (
-    <div className="space-y-3">
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+      className="space-y-3"
+    >
       <div className="mb-6">
         <h2 className="text-lg font-semibold mb-1">API Reference</h2>
         <p className="text-sm text-muted-foreground">
@@ -113,6 +114,6 @@ export function ApiTab() {
       {MODELS.map((model) => (
         <ModelCard key={model.id} model={model} />
       ))}
-    </div>
+    </motion.div>
   );
 }

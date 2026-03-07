@@ -22,8 +22,6 @@ import { JobStatusBadge } from "@/components/shared/job-status-badge";
 import { getJobStatus, cancelJob, getJobLogStreamUrl } from "@/lib/api/jobs";
 import { getRunArtifacts, getDownloadUrl } from "@/lib/api/assets";
 import { toast } from "sonner";
-import { getApiCredentials } from "@/lib/api/credentials";
-import { BASE_URL } from "@/lib/api/client";
 
 interface LogEntry {
   timestamp?: string;
@@ -43,7 +41,7 @@ export default function JobDetailPage({
 
   const { data: job, isLoading, refetch } = useQuery({
     queryKey: ["job", jobId],
-    queryFn: () => getJobStatus(jobId, true),
+    queryFn: () => getJobStatus(jobId, { includeAssets: true }),
     refetchInterval: (query) => {
       const status = query.state.data?.status;
       return status === "running" || status === "pending" ? 5000 : false;
@@ -61,9 +59,7 @@ export default function JobDetailPage({
     if (!job?.job_id) return;
     if (job.status !== "running" && job.status !== "pending") return;
 
-    const { apiKey, orgId } = getApiCredentials();
-    // EventSource doesn't support custom headers — use URL params as fallback
-    const url = `${BASE_URL}/api/v1/jobs/${jobId}/logs/stream?x_api_key=${apiKey ?? ""}&org_id=${orgId}`;
+    const url = getJobLogStreamUrl(jobId);
     const es = new EventSource(url);
     esRef.current = es;
 

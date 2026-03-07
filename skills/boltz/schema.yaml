@@ -1,0 +1,83 @@
+# Schema definition for Boltz structure prediction
+# This is the single source of truth for parameter validation
+
+name: boltz
+description: AlphaFold3-like structure prediction for proteins, DNA, RNA, and small molecules using Boltz-1
+category: validation
+tags:
+  - structure-prediction
+  - complexes
+  - ligands
+  - alphafold3-alternative
+  - multimer
+
+biomodals_script: modal_boltz.py
+biomodals_function: boltz
+
+recommended_timeout: 600
+recommended_gpu: L40S
+
+# Tool capabilities for protocol planning and validation
+capabilities:
+  multimer: true         # Supports complexes
+  ligands: true          # Supports small molecules (SMILES)
+  nucleic_acids: true    # Supports DNA/RNA
+  ccd: true             # Supports CCD identifiers
+  speed: medium          # ~5-10 min per structure
+  accuracy: high         # Similar to AF3
+  max_chains: 20         # Supports large complexes
+  gpu_required: true
+  gpu_memory_gb: 48
+
+# Artifact schema - what this tool returns
+artifacts:
+  primary: structure     # Returns single structure per call (collected as "structures" in MAP)
+
+# Semantic parameter mappings for protocol abstraction
+semantic_mappings:
+  sequence_input: input_str
+
+parameters:
+  input_str:
+    type: string
+    required: true
+    description: >
+      Input content as a string, can be in FASTA or Boltz YAML format.
+      YAML format supports proteins, DNA, RNA, SMILES strings, and CCD identifiers.
+      FASTA format is automatically converted to YAML for simple protein predictions.
+
+  params_str:
+    type: string
+    required: false
+    default: "--use_msa_server --seed 42"
+    description: >
+      Additional parameters for the boltz predict command.
+      Common options: --recycling_steps, --step_scale, --diffusion_samples
+
+  model:
+    type: string
+    required: false
+    default: "boltz-2"
+    enum: ["boltz-1", "boltz-2"]
+    description: >
+      Boltz model version to use. 
+      "boltz-2" (default, recommended) - Latest model with improved accuracy.
+      "boltz-1" - Original model, maintained for comparison.
+
+  upload_to_gcs:
+    type: boolean
+    required: false
+    default: true
+    description: Upload results to Google Cloud Storage
+
+  gcs_bucket:
+    type: string
+    required: false
+    default: null
+    description: GCS bucket name for uploads
+
+  run_id:
+    type: string
+    required: false
+    default: null
+    description: Unique identifier for this run

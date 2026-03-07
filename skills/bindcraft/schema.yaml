@@ -1,0 +1,139 @@
+name: bindcraft
+description: De novo protein binder design using BindCraft pipeline
+category: design
+tags: [binder, design, protein-protein, de-novo]
+
+biomodals_script: modal_bindcraft.py
+biomodals_function: bindcraft
+recommended_timeout: 60
+recommended_gpu: A100
+
+# Tool capabilities for protocol planning and validation
+capabilities:
+  binder_design: true    # End-to-end binder design pipeline
+  hotspots: true         # Can specify hotspot residues
+  integrated_validation: true  # Includes AlphaFold validation
+  speed: slow            # ~30-60 min full pipeline
+  gpu_required: true
+  gpu_memory_gb: 40
+
+# Artifact schema - what this tool returns
+artifacts:
+  primary: structures    # Returns multiple binder structures
+  secondary: sequences   # Also returns sequences
+
+# Semantic parameter mappings for protocol abstraction
+semantic_mappings:
+  structure_input: pdb_str
+
+parameters:
+  design_path:
+    type: string
+    required: true
+    description: >
+      Path for design outputs within the container (e.g., "/tmp/bindcraft/designs")
+  
+  binder_name:
+    type: string
+    required: true
+    description: >
+      Name for the binder design project. Used for output organization and identification.
+  
+  pdb_str:
+    type: string
+    required: true
+    description: >
+      Target PDB structure as a string. The protein structure to design a binder against.
+  
+  chains:
+    type: string
+    required: true
+    description: >
+      Target chain(s) in the PDB to bind to (e.g., "A" for single chain, "A,B" for multiple).
+  
+  target_hotspot_residues:
+    type: string
+    required: true
+    description: >
+      Hotspot residues on the target to focus binding design on (e.g., "A10,A15,A20").
+      Format: chain + residue number, comma-separated.
+  
+  lengths:
+    type: list
+    required: true
+    description: >
+      Range of lengths for the designed binder (e.g., [50, 100] for binders between 50-100 residues).
+      Typically specified as [min_length, max_length].
+  
+  number_of_final_designs:
+    type: integer
+    required: true
+    description: >
+      Number of final binder designs to generate. Typical range: 10-100.
+  
+  design_protocol:
+    type: string
+    required: false
+    default: "Default"
+    enum: ["Default", "Beta-sheet", "Peptide"]
+    description: >
+      Design protocol to use:
+      - "Default": Standard 4-stage multimer design
+      - "Beta-sheet": Optimized for beta-sheet binders
+      - "Peptide": Optimized for peptide binders (shorter sequences)
+  
+  interface_protocol:
+    type: string
+    required: false
+    default: "AlphaFold2"
+    enum: ["AlphaFold2", "MPNN"]
+    description: >
+      Interface protocol for sequence design:
+      - "AlphaFold2": Use AlphaFold2 for interface prediction
+      - "MPNN": Use ProteinMPNN for sequence design
+  
+  template_protocol:
+    type: string
+    required: false
+    default: "Default"
+    enum: ["Default", "Masked"]
+    description: >
+      Template protocol:
+      - "Default": Standard template usage
+      - "Masked": Flexible/masked template approach
+  
+  filter_option:
+    type: string
+    required: false
+    default: "Default"
+    enum: ["Default", "Peptide"]
+    description: >
+      Filter settings to apply to designed binders:
+      - "Default": Standard quality filters
+      - "Peptide": Filters optimized for peptide binders
+  
+  max_trajectories:
+    type: integer
+    required: false
+    default: null
+    description: >
+      Maximum number of design trajectories to run. If not specified, runs until 
+      number_of_final_designs is reached. Useful for controlling computation time.
+  
+  upload_to_gcs:
+    type: boolean
+    required: false
+    default: true
+    description: Upload results to Google Cloud Storage
+  
+  gcs_bucket:
+    type: string
+    required: false
+    default: null
+    description: GCS bucket name for uploads
+  
+  run_id:
+    type: string
+    required: false
+    default: null
+    description: Unique identifier for this run

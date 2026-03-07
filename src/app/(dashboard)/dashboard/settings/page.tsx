@@ -1,49 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { Copy, Check, RefreshCw, Eye, EyeOff, AlertCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { APIKeys } from "@clerk/nextjs";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
-import { useSessionStore, useSettingsStore } from "@/lib/stores/auth-store";
+import { useSettingsStore } from "@/lib/stores/auth-store";
 import { toast } from "sonner";
 
 export default function SettingsPage() {
   const { user } = useAuth();
-  const { apiKey, setApiKey } = useSessionStore();
   const { orgId, userId, setOrgId, setUserId } = useSettingsStore();
-  const [showKey, setShowKey] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [editingOrg, setEditingOrg] = useState(orgId);
   const [editingUser, setEditingUser] = useState(userId);
-
-  const maskedKey = apiKey
-    ? apiKey.slice(0, 8) + "•".repeat(Math.min(32, apiKey.length - 8)) + apiKey.slice(-4)
-    : "";
-
-  const copyKey = async () => {
-    if (!apiKey) return;
-    await navigator.clipboard.writeText(apiKey);
-    setCopied(true);
-    toast.success("Copied to clipboard");
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const refreshIdToken = async () => {
-    if (!user) return;
-    try {
-      const token = await user.getIdToken();
-      setApiKey(token);
-      toast.success("Token refreshed");
-    } catch {
-      toast.error("Failed to refresh token");
-    }
-  };
 
   const saveOrgSettings = () => {
     setOrgId(editingOrg);
@@ -56,11 +28,11 @@ export default function SettingsPage() {
       <div>
         <h1 className="text-xl font-semibold">Settings</h1>
         <p className="text-sm text-muted-foreground mt-0.5">
-          Manage your API credentials and organization settings.
+          Manage your API keys and organization settings.
         </p>
       </div>
 
-      {/* Profile */}
+      {/* Account */}
       <Card className="p-5 space-y-4">
         <h2 className="text-sm font-medium">Account</h2>
         <div className="grid grid-cols-2 gap-4 text-sm">
@@ -73,74 +45,38 @@ export default function SettingsPage() {
             <p>{user?.email ?? "—"}</p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground mb-0.5">UID</p>
+            <p className="text-xs text-muted-foreground mb-0.5">User ID</p>
             <p className="font-mono text-xs">{user?.uid ?? "—"}</p>
           </div>
         </div>
       </Card>
 
-      {/* API Key */}
+      {/* API Keys — Clerk component. Enable in Clerk Dashboard → Configure → API Keys. */}
       <Card className="p-5 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-medium">API key</h2>
-          <Badge variant="secondary" className="text-xs">Firebase ID Token</Badge>
+        <div>
+          <h2 className="text-sm font-medium">API keys</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Long-lived keys for CLI usage, CI pipelines, and Claude Code skills. Keys are
+            immediately revocable and never expire unless you set an expiry.
+          </p>
         </div>
 
-        <Alert>
-          <AlertCircle className="size-4" />
-          <AlertDescription className="text-xs">
-            Your API key is your Firebase ID token. It expires after 1 hour — use
-            &ldquo;Refresh&rdquo; to get a new one. Permanent API key management will be available
-            once the backend auth endpoint is deployed.
-          </AlertDescription>
-        </Alert>
+        <APIKeys />
 
-        <div className="space-y-1.5">
-          <Label className="text-xs">Key</Label>
-          <div className="flex gap-2">
-            <Input
-              readOnly
-              value={showKey ? (apiKey ?? "") : maskedKey}
-              className="font-mono text-xs flex-1"
-              placeholder="No key — sign in to generate"
-            />
-            <Button
-              size="icon"
-              variant="outline"
-              className="size-9 shrink-0"
-              onClick={() => setShowKey((v) => !v)}
-              disabled={!apiKey}
-            >
-              {showKey ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-            </Button>
-            <Button
-              size="icon"
-              variant="outline"
-              className="size-9 shrink-0"
-              onClick={copyKey}
-              disabled={!apiKey}
-            >
-              {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-            </Button>
-            <Button
-              size="icon"
-              variant="outline"
-              className="size-9 shrink-0"
-              onClick={refreshIdToken}
-              disabled={!user}
-            >
-              <RefreshCw className="size-3.5" />
-            </Button>
-          </div>
-        </div>
+        <Separator />
 
-        <div className="pt-1">
-          <p className="text-xs text-muted-foreground mb-2">Usage in curl</p>
+        <div>
+          <p className="text-xs text-muted-foreground mb-2">Using your API key</p>
           <pre className="bg-muted rounded-md p-3 text-xs overflow-x-auto leading-relaxed">
-            <code>{`curl -X POST https://design.dynotx.com/api/v1/jobs/ \\
-  -H "x-api-key: ${apiKey ? apiKey.slice(0, 12) + "..." : "YOUR_API_KEY"}" \\
+            <code>{`# CLI / shell script
+curl -X POST https://design.dynotx.com/api/v1/jobs/ \\
+  -H "x-api-key: YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
-  -d '{ "job_type": "esmfold", "params": { ... } }'`}</code>
+  -d '{ "job_type": "esmfold", "params": { ... } }'
+
+# Environment variable (Claude Code skills, CI pipelines)
+export DYNO_API_KEY="YOUR_API_KEY"
+export DYNO_API_BASE_URL="https://design.dynotx.com/api/v1"`}</code>
           </pre>
         </div>
       </Card>
@@ -149,8 +85,8 @@ export default function SettingsPage() {
       <Card className="p-5 space-y-4">
         <h2 className="text-sm font-medium">Organization settings</h2>
         <p className="text-xs text-muted-foreground">
-          These values are sent as headers with every API request. They will be
-          replaced by proper org management once the auth endpoint is available.
+          These values are sent as request headers. They will be replaced by Clerk
+          organization management once the backend auth endpoint is available.
         </p>
         <Separator />
         <div className="grid grid-cols-2 gap-4">
@@ -182,19 +118,6 @@ export default function SettingsPage() {
             Save
           </Button>
         </div>
-      </Card>
-
-      {/* Environment variable reference */}
-      <Card className="p-5 space-y-3">
-        <h2 className="text-sm font-medium">Local environment setup</h2>
-        <p className="text-xs text-muted-foreground">
-          For use with Claude Code skills or local scripts:
-        </p>
-        <pre className="bg-muted rounded-md p-3 text-xs overflow-x-auto leading-relaxed">
-          <code>{`export DYNO_PHI_API_KEY="${apiKey ? apiKey.slice(0, 12) + "..." : "your-api-key"}"
-export DYNO_PHI_ORG_ID="${orgId}"
-export DYNO_PHI_BASE_URL="https://design.dynotx.com/api/v1"`}</code>
-        </pre>
       </Card>
     </div>
   );

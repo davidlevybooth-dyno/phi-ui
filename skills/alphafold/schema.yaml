@@ -1,0 +1,100 @@
+# Schema definition for AlphaFold structure prediction
+# This is the single source of truth for parameter validation
+
+name: alphafold
+description: Predict protein structures and validate designs using AlphaFold2
+category: validation
+tags:
+  - structure-prediction
+  - validation
+  - confidence
+
+biomodals_script: modal_alphafold.py
+biomodals_function: alphafold
+
+recommended_timeout: 1800
+recommended_gpu: A100-40GB
+
+# Tool capabilities for protocol planning and validation
+capabilities:
+  multimer: true          # Can predict protein complexes
+  templates: true         # Can use PDB templates
+  msa: true              # Uses multiple sequence alignments
+  speed: slow            # ~10-20 min per structure
+  accuracy: high         # Best accuracy for most proteins
+  max_chains: 10         # Maximum number of chains
+  gpu_required: true
+  gpu_memory_gb: 40
+
+# Artifact schema - what this tool returns
+artifacts:
+  primary: structure     # Returns single structure per call (collected as "structures" in MAP)
+
+# Semantic parameter mappings for protocol abstraction
+semantic_mappings:
+  sequence_input: fasta_str
+  num_recycles: num_recycles
+
+parameters:
+  fasta_str:
+    type: string
+    required: true
+    description: FASTA file content as string with protein sequences
+
+  num_recycles:
+    type: integer
+    required: false
+    default: 3
+    min: 1
+    max: 10
+    description: Number of recycling iterations for structure prediction
+
+  models:
+    type: string
+    required: false
+    default: "1,2,3,4,5"
+    description: Comma-separated list of model numbers to use (e.g., "1,2,3")
+
+  use_multimer:
+    type: boolean
+    required: false
+    default: false
+    description: Use AlphaFold-Multimer for complex prediction
+
+  num_relax:
+    type: integer
+    required: false
+    default: 0
+    min: 0
+    max: 10
+    description: Number of Amber relaxation steps (0 to skip)
+
+  use_templates:
+    type: boolean
+    required: false
+    default: false
+    description: Use PDB templates for prediction
+
+  use_precomputed_msas:
+    type: boolean
+    required: false
+    default: false
+    description: Use precomputed MSAs if available
+
+  upload_to_gcs:
+    type: boolean
+    required: false
+    default: true
+    description: Upload results to Google Cloud Storage
+
+  gcs_bucket:
+    type: string
+    required: false
+    default: null
+    description: GCS bucket name for uploads
+
+  run_id:
+    type: string
+    required: false
+    default: null
+    description: Unique identifier for this run

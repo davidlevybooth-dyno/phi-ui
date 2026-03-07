@@ -1,94 +1,170 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Upload, Cpu, SlidersHorizontal, Download } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Show, UserButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DynoLogo } from "@/components/shared/dyno-logo";
-import { ApiTab } from "@/components/landing/api-tab";
+import { ModelGrid } from "@/components/landing/model-grid";
 import { DocsTab } from "@/components/landing/docs-tab";
 import { SkillsTab } from "@/components/landing/skills-tab";
 
+const WORKFLOW_STEPS = [
+  {
+    icon: Upload,
+    number: "01",
+    title: "Upload",
+    description: "Submit FASTA sequences or a PDB structure — via the agent, the web app, or the REST API.",
+  },
+  {
+    icon: Cpu,
+    number: "02",
+    title: "Score",
+    description: "Run ESMFold, AlphaFold2, and ProteinMPNN on cloud GPUs. Results back in minutes.",
+  },
+  {
+    icon: SlidersHorizontal,
+    number: "03",
+    title: "Filter",
+    description: "Apply metric thresholds — ipTM, pLDDT, ipSAE, MPNN score — to shortlist candidates.",
+  },
+  {
+    icon: Download,
+    number: "04",
+    title: "Download",
+    description: "Export ranked binder sequences and structures as FASTA and PDB files.",
+  },
+];
+
+const fadeUp = (delay: number) => ({
+  initial: { opacity: 0, y: 16 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.55, ease: "easeOut" as const, delay },
+});
+
 export default function LandingPage() {
+  const [activeTab, setActiveTab] = useState("models");
+
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="flex-1 flex flex-col bg-background">
       {/* Header */}
       <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="mx-auto max-w-6xl px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
+          <Link href="/" className="flex items-center gap-2.5">
             <DynoLogo className="size-8" />
-            <div className="flex items-baseline gap-1.5">
-              <span className="font-semibold text-sm">Dyno</span>
-              <span className="text-sm text-muted-foreground">Psi-Phi</span>
-            </div>
-          </div>
+            <span className="font-semibold text-sm">Dyno Phi</span>
+          </Link>
           <div className="flex items-center gap-2">
-            <Button asChild variant="ghost" size="sm">
-              <Link href="/login">Sign in</Link>
-            </Button>
-            <Button asChild size="sm">
-              <Link href="/login?mode=register">
-                Get started
-                <ArrowRight className="ml-1.5 size-3.5" />
-              </Link>
-            </Button>
+            <Show when="signed-out">
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/login">Sign in</Link>
+              </Button>
+            </Show>
+            <Show when="signed-in">
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/dashboard">Dashboard</Link>
+              </Button>
+              <UserButton />
+            </Show>
           </div>
         </div>
       </header>
 
       {/* Hero */}
-      <section className="mx-auto max-w-6xl px-6 py-16 text-center">
-        <p className="text-xs font-medium tracking-widest uppercase text-muted-foreground mb-4">
-          Dyno Psi-Phi · Launching with NVIDIA GTC
-        </p>
-        <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl leading-tight mb-4">
-          Protein binder scoring
+      <section className="mx-auto max-w-6xl w-full px-6 pt-16 pb-10 text-center">
+        <motion.h1
+          {...fadeUp(0)}
+          className="text-4xl font-semibold tracking-tight sm:text-5xl leading-tight mb-4"
+        >
+          Score, filter, and rank
           <br />
-          grounded by experiment
-        </h1>
-        <p className="max-w-xl mx-auto text-muted-foreground text-base leading-relaxed mb-8">
-          REST APIs and an agentic interface for scoring, filtering, and ranking
-          AI-generated protein binder designs — calibrated against real-world
-          binding data.
-        </p>
-        <div className="flex items-center justify-center gap-3">
-          <Button asChild>
-            <Link href="/login?mode=register">
-              Start free
-              <ArrowRight className="ml-1.5 size-3.5" />
-            </Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href="/dashboard/agent">Try the agent</Link>
-          </Button>
-        </div>
+          your protein binder designs.
+        </motion.h1>
+
+        <motion.p
+          {...fadeUp(0.12)}
+          className="max-w-lg mx-auto text-muted-foreground text-base leading-relaxed mb-8"
+        >
+          REST APIs and an agentic skills for scoring and filtering
+          AI-generated binder designs without managing infrastructure.
+        </motion.p>
+
+        <motion.div
+          {...fadeUp(0.24)}
+          className="flex items-center justify-center gap-3"
+        >
+          <Show when="signed-out">
+            <Button asChild className="rounded-full px-6">
+              <Link href="/login?mode=register">
+                Get started
+                <ArrowRight className="ml-1.5 size-3.5" />
+              </Link>
+            </Button>
+          </Show>
+          <Show when="signed-in">
+            <Button asChild className="rounded-full px-6">
+              <Link href="/dashboard">
+                Go to dashboard
+                <ArrowRight className="ml-1.5 size-3.5" />
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="rounded-full px-6">
+              <Link href="/dashboard/agent">Open agent</Link>
+            </Button>
+          </Show>
+        </motion.div>
       </section>
 
-      {/* Main tabs */}
-      <section className="mx-auto w-full max-w-6xl px-6 pb-16 flex-1">
-        <Tabs defaultValue="api" className="w-full">
-          <TabsList className="mb-8 grid w-fit grid-cols-3 mx-auto">
-            <TabsTrigger value="api">API Reference</TabsTrigger>
-            <TabsTrigger value="docs">Docs</TabsTrigger>
-            <TabsTrigger value="skills">Claude Skills</TabsTrigger>
+      {/* Workflow strip */}
+      <motion.section
+        {...fadeUp(0.36)}
+        className="mx-auto max-w-6xl w-full px-6 pb-12"
+      >
+        <div className="border-t border-b py-8 grid grid-cols-2 sm:grid-cols-4 gap-6">
+          {WORKFLOW_STEPS.map(({ icon: Icon, number, title, description }) => (
+            <div key={number} className="flex flex-col gap-2.5">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-mono text-muted-foreground/60">{number}</span>
+                <Icon className="size-3.5 text-muted-foreground/60" />
+              </div>
+              <p className="text-sm font-medium">{title}</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">{description}</p>
+            </div>
+          ))}
+        </div>
+      </motion.section>
+
+      {/* Tabbed section */}
+      <motion.section
+        {...fadeUp(0.48)}
+        className="mx-auto max-w-6xl w-full px-6 pb-16"
+      >
+        {/* shadcn TabsList provides the pill-slider; we own the content */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="mb-8 mx-auto flex w-full max-w-sm">
+            <TabsTrigger value="models" className="flex-1">Models</TabsTrigger>
+            <TabsTrigger value="docs" className="flex-1">Docs</TabsTrigger>
+            <TabsTrigger value="skills" className="flex-1">Skills</TabsTrigger>
           </TabsList>
-          <TabsContent value="api">
-            <ApiTab />
-          </TabsContent>
-          <TabsContent value="docs">
-            <DocsTab />
-          </TabsContent>
-          <TabsContent value="skills">
-            <SkillsTab />
-          </TabsContent>
         </Tabs>
-      </section>
 
-      {/* Footer */}
-      <footer className="border-t py-8">
-        <div className="mx-auto max-w-6xl px-6 flex items-center justify-between text-xs text-muted-foreground">
-          <p>© 2026 Dyno Therapeutics. All rights reserved.</p>
-          <p>design.dynotx.com</p>
-        </div>
-      </footer>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.2, ease: "easeOut" as const }}
+          >
+            {activeTab === "models" && <ModelGrid />}
+            {activeTab === "docs" && <DocsTab />}
+            {activeTab === "skills" && <SkillsTab />}
+          </motion.div>
+        </AnimatePresence>
+      </motion.section>
     </div>
   );
 }

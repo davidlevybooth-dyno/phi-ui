@@ -1,3 +1,6 @@
+"use client";
+
+import { motion } from "framer-motion";
 import {
   Accordion,
   AccordionContent,
@@ -100,13 +103,18 @@ const FAQ = [
   },
   {
     q: "How do I integrate Psi-Phi into Claude Code?",
-    a: "Download the skill files from the Claude Skills tab and install them in your Claude Code environment. Set your API key as the DYNO_PHI_API_KEY environment variable. The skill instructs Claude Code how to call scoring, filtering, and workflow APIs.",
+    a: "Download the skill files from the Claude Skills tab and install them in your Claude Code environment. Set your API key as the DYNO_API_KEY environment variable. The skill instructs Claude Code how to call scoring, filtering, and workflow APIs.",
   },
 ];
 
 export function DocsTab() {
   return (
-    <div className="space-y-8">
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+      className="space-y-8"
+    >
       {/* Pipeline */}
       <div>
         <h2 className="text-lg font-semibold mb-4">Default Scoring Pipeline</h2>
@@ -194,6 +202,6 @@ export function DocsTab() {
           </Accordion>
         </Card>
       </div>
-    </div>
+    </motion.div>
   );
 }

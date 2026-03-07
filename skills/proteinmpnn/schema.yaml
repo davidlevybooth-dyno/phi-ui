@@ -1,0 +1,90 @@
+# Schema definition for ProteinMPNN sequence design
+# This is the single source of truth for parameter validation
+
+name: proteinmpnn
+description: Design protein sequences for given backbone structures using ProteinMPNN
+category: design
+tags:
+  - sequence-design
+  - mpnn
+  - inverse-folding
+
+biomodals_script: modal_proteinmpnn.py
+biomodals_function: proteinmpnn_design
+
+recommended_timeout: 180
+recommended_gpu: T4
+
+# Tool capabilities for protocol planning and validation
+capabilities:
+  fixed_backbone: true   # Designs sequences for fixed backbones
+  multistate: true       # Can design across multiple states
+  tied_positions: true   # Can tie specific positions
+  speed: fast            # ~10-30 seconds per backbone
+  gpu_required: false    # Can run on CPU
+
+# Artifact schema - what this tool returns
+artifacts:
+  primary: sequences     # Returns FASTA string with multiple sequences
+
+# Semantic parameter mappings for protocol abstraction
+semantic_mappings:
+  structure_input: pdb_content  # or pdb_gcs_uri
+
+parameters:
+  pdb_content:
+    type: string
+    required: false
+    default: null
+    description: PDB file content as string
+
+  pdb_gcs_uri:
+    type: string
+    required: false
+    default: null
+    description: GCS URI to PDB file (alternative to pdb_content)
+
+  num_sequences:
+    type: integer
+    required: false
+    default: 10
+    min: 1
+    max: 1000
+    description: Number of sequences to design
+
+  temperature:
+    type: number
+    required: false
+    default: 0.1
+    min: 0.01
+    max: 2.0
+    description: Sampling temperature (lower = more conservative)
+
+  fixed_positions:
+    type: string
+    required: false
+    default: null
+    description: Comma-separated list of positions to keep fixed (e.g., "1,5,10-15")
+
+  upload_to_gcs:
+    type: boolean
+    required: false
+    default: true
+    description: Upload results to Google Cloud Storage
+
+  gcs_bucket:
+    type: string
+    required: false
+    default: null
+    description: GCS bucket name for uploads
+
+  run_id:
+    type: string
+    required: false
+    default: null
+    description: Unique identifier for this run
+
+# Special validation: one of pdb_content or pdb_gcs_uri must be provided
+one_of_required:
+  - - pdb_content
+    - pdb_gcs_uri
