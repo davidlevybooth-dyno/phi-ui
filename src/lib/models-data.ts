@@ -53,6 +53,23 @@ export interface ModelInfo {
   requestSchema: Record<string, unknown>;
   responseSchema: Record<string, unknown>;
   modelCard: ModelCard;
+  /**
+   * Local /public/mock path for the structure viewer mock.
+   * Single-chain models (ESMFold, Boltz, Chai1) → esmfold-gb1.pdb
+   * Multi-chain models (AF2)                     → af2-gb1.pdb
+   * Models without a structure output leave this undefined.
+   */
+  mockStructureUrl?: string;
+  /**
+   * Example PDB for models that accept structure input (e.g. ProteinMPNN).
+   * Shown as a "Load example" button in the PDB upload panel.
+   */
+  examplePdb?: { label: string; url: string };
+  /**
+   * Whether the sequence input must be a single chain (no ":" separator).
+   * ESMFold cannot model protein–protein interactions.
+   */
+  singleChainOnly?: boolean;
 }
 
 const BASE_URL = "https://design.dynotx.com/api/v1";
@@ -89,6 +106,65 @@ export const MODELS: ModelInfo[] = [
     exampleSequence: AF2_COMPLEX_EXAMPLE,
     formFields: [
       {
+        key: "model_type",
+        label: "Model Type",
+        type: "select",
+        defaultValue: "auto",
+        description: "auto selects ptm for monomers, multimer_v3 for complexes",
+        options: [
+          { value: "auto", label: "Auto" },
+          { value: "alphafold2_ptm", label: "alphafold2_ptm" },
+          { value: "alphafold2_multimer_v3", label: "alphafold2_multimer_v3" },
+        ],
+      },
+      {
+        key: "msa_tool",
+        label: "MSA Tool",
+        type: "select",
+        defaultValue: "mmseqs2",
+        description: "Algorithm for building the multiple sequence alignment",
+        options: [
+          { value: "mmseqs2", label: "MMseqs2 (fast)" },
+          { value: "jackhmmer", label: "JackHMMer (AF2 native)" },
+          { value: "none", label: "Single sequence (no MSA)" },
+        ],
+      },
+      {
+        key: "msa_databases",
+        label: "MSA Databases",
+        type: "select",
+        defaultValue: "uniref_env",
+        description: "Database set searched for MSA — uniref_env gives best results",
+        options: [
+          { value: "uniref_env", label: "UniRef90 + Env (recommended)" },
+          { value: "uniref_only", label: "UniRef90 only" },
+          { value: "small_bfd", label: "Small BFD (faster)" },
+        ],
+      },
+      {
+        key: "template_mode",
+        label: "Templates",
+        type: "select",
+        defaultValue: "none",
+        description: "Template structure lookup — pdb70 queries a 3rd-party service",
+        options: [
+          { value: "none", label: "None (disabled)" },
+          { value: "pdb70", label: "PDB70 (auto-search)" },
+        ],
+      },
+      {
+        key: "pair_mode",
+        label: "Pair Mode",
+        type: "select",
+        defaultValue: "unpaired_paired",
+        description: "MSA pairing strategy for complexes",
+        options: [
+          { value: "unpaired_paired", label: "Unpaired + Paired (recommended)" },
+          { value: "unpaired", label: "Unpaired only" },
+          { value: "paired", label: "Paired only" },
+        ],
+      },
+      {
         key: "num_recycles",
         label: "Recycles",
         type: "number",
@@ -104,35 +180,45 @@ export const MODELS: ModelInfo[] = [
         defaultValue: 3,
         min: 1,
         max: 5,
-        description: "Number of model seeds to run — increases confidence at the cost of speed",
+        description: "Number of model seeds to run",
+      },
+      {
+        key: "use_amber",
+        label: "Amber Relaxation",
+        type: "boolean",
+        defaultValue: false,
+        description: "Run AMBER force-field relaxation to remove stereochemical violations",
       },
     ],
     mockOutput: {
       metrics: {
-        mean_plddt: 87.3,
-        ptm: 0.84,
-        iptm: 0.82,
-        i_pae: 4.2,
-        i_psae: 3.9,
+        mean_plddt: 78.6,
+        ptm: 0.67,
+        iptm: 0.11,
+        i_pae: 16.6,
       },
       json: {
         job_id: "550e8400-e29b-41d4-a716-446655440000",
         status: "completed",
         mode: "multimer",
+        model_type: "alphafold2_multimer_v3",
         num_chains: 2,
+        chain_lengths: [56, 20],
         metrics: {
           summary: {
-            mean_plddt: 87.3,
-            mean_ptm: 0.84,
-            mean_iptm: 0.82,
-            mean_i_pae: 4.2,
-            mean_i_psae: 3.9,
+            mean_plddt: 78.6,
+            ptm: 0.67,
+            iptm: 0.11,
+            i_pae: 16.6,
+            max_pae: 27.3,
           },
           per_chain: [
-            { chain_id: "A", plddt: 89.1, length: 56 },
-            { chain_id: "B", plddt: 85.5, length: 20 },
+            { chain_id: "A", mean_plddt: 87.7, length: 56 },
+            { chain_id: "B", mean_plddt: 53.3, length: 20 },
           ],
         },
+        // Per-residue pLDDT for profile chart (chain A: 0-55, chain B: 56-75)
+        plddt: [88.88, 89.56, 85.81, 90.69, 90.06, 93.75, 92.5, 95.38, 92.88, 94.56, 89.12, 88.25, 93.5, 93.56, 91.81, 86.38, 85.94, 82.25, 81.62, 83.06, 85.06, 82.69, 84.44, 81.75, 83.12, 85.19, 84.56, 81.06, 82.31, 85.44, 84.19, 81.81, 81.44, 86.5, 85.06, 82.38, 85.5, 82.69, 85.88, 85.06, 85.06, 87.62, 89.25, 86.81, 90.94, 89.44, 84.06, 91.0, 95.31, 91.12, 93.12, 90.5, 92.81, 90.44, 92.62, 93.31, 52.06, 57.94, 53.03, 55.78, 59.31, 57.97, 54.84, 56.75, 57.91, 46.12, 48.53, 48.59, 46.75, 49.91, 48.56, 56.78, 51.03, 54.34, 59.28, 49.84],
       },
     },
     curlExample: `curl -X POST ${BASE_URL}/jobs \\
@@ -188,11 +274,42 @@ phi download JOB_ID --out ./af2_results
         properties: {
           sequence: {
             type: "string",
-            description: "Amino acid sequence. Separate chains with \":\" for multimer prediction — mode is inferred automatically.",
+            description: "Amino acid sequence. Separate chains with \":\" for multimer prediction — mode inferred automatically.",
             required: true,
+          },
+          model_type: {
+            type: "string",
+            enum: ["auto", "alphafold2_ptm", "alphafold2_multimer_v3"],
+            default: "auto",
+            description: "Model variant. auto selects ptm for monomers, multimer_v3 for complexes.",
+          },
+          msa_tool: {
+            type: "string",
+            enum: ["mmseqs2", "jackhmmer", "none"],
+            default: "mmseqs2",
+            description: "MSA generation algorithm.",
+          },
+          msa_databases: {
+            type: "string",
+            enum: ["uniref_env", "uniref_only", "small_bfd"],
+            default: "uniref_env",
+            description: "Database set for MSA search.",
+          },
+          template_mode: {
+            type: "string",
+            enum: ["none", "pdb70"],
+            default: "none",
+            description: "Template lookup mode.",
+          },
+          pair_mode: {
+            type: "string",
+            enum: ["unpaired_paired", "unpaired", "paired"],
+            default: "unpaired_paired",
+            description: "MSA pairing strategy for multi-chain inputs.",
           },
           num_recycles: { type: "integer", minimum: 1, maximum: 10, default: 6 },
           num_seeds: { type: "integer", minimum: 1, maximum: 5, default: 3 },
+          use_amber: { type: "boolean", default: false, description: "AMBER force-field relaxation." },
         },
       },
     },
@@ -227,6 +344,7 @@ phi download JOB_ID --out ./af2_results
       thirdPartyNote:
         "AlphaFold2 is developed by DeepMind (Google). Dyno runs it on cloud GPUs via a managed API. The model weights are released under Apache 2.0 / CC BY 4.0.",
     },
+    mockStructureUrl: "/mock/af2-gb1.pdb",
   },
   {
     id: "esmfold",
@@ -244,20 +362,25 @@ phi download JOB_ID --out ./af2_results
     formFields: [],
     mockOutput: {
       metrics: {
-        binder_plddt: 87.5,
-        ptm: 0.82,
-        pae: 8.4,
-        rmsd: 1.8,
+        mean_plddt: 87.7,
+        ptm: 0.83,
       },
       json: {
         job_id: "f47ac10b-58cc-4372-a567-0e02b2c3d479",
         status: "completed",
+        mode: "monomer",
+        model_type: "esmfold",
+        num_chains: 1,
+        chain_lengths: [56],
         metrics: {
-          mean_binder_plddt: 87.5,
-          mean_ptm: 0.82,
-          mean_pae: 8.4,
-          mean_rmsd: 1.8,
+          summary: {
+            mean_plddt: 87.7,
+            ptm: 0.83,
+          },
+          per_chain: [{ chain_id: "A", mean_plddt: 87.7, length: 56 }],
         },
+        // Chain A pLDDT from AF2 GB1 prediction (56 residues)
+        plddt: [88.88, 89.56, 85.81, 90.69, 90.06, 93.75, 92.5, 95.38, 92.88, 94.56, 89.12, 88.25, 93.5, 93.56, 91.81, 86.38, 85.94, 82.25, 81.62, 83.06, 85.06, 82.69, 84.44, 81.75, 83.12, 85.19, 84.56, 81.06, 82.31, 85.44, 84.19, 81.81, 81.44, 86.5, 85.06, 82.38, 85.5, 82.69, 85.88, 85.06, 85.06, 87.62, 89.25, 86.81, 90.94, 89.44, 84.06, 91.0, 95.31, 91.12, 93.12, 90.5, 92.81, 90.44, 92.62, 93.31],
       },
     },
     curlExample: `curl -X POST ${BASE_URL}/jobs \\
@@ -336,6 +459,8 @@ phi download JOB_ID --out ./esmfold_results
       thirdPartyNote:
         "ESMFold is developed by Meta AI Research. Released under the MIT license.",
     },
+    mockStructureUrl: "/mock/esmfold-gb1.pdb",
+    singleChainOnly: true,
   },
   {
     id: "proteinmpnn",
@@ -352,12 +477,19 @@ phi download JOB_ID --out ./esmfold_results
     formFields: [
       {
         key: "num_sequences",
-        label: "Sequences per backbone",
+        label: "Sequences to generate",
         type: "number",
-        defaultValue: 8,
+        defaultValue: 4,
         min: 1,
         max: 128,
-        description: "How many sequences to design for each input backbone",
+        description: "How many sequences to design for this backbone",
+      },
+      {
+        key: "fixed_positions",
+        label: "Fixed positions (optional)",
+        type: "text",
+        placeholder: "A1 A5 A10 or A1,A5,A10",
+        description: "Chain + residue numbers to hold fixed (e.g. active-site residues)",
       },
       {
         key: "temperature",
@@ -367,13 +499,6 @@ phi download JOB_ID --out ./esmfold_results
         min: 0.0,
         max: 1.0,
         description: "0.1 = conservative (near native), 1.0 = diverse",
-      },
-      {
-        key: "fixed_positions",
-        label: "Fixed residues (optional)",
-        type: "text",
-        placeholder: "A1,A2,A5",
-        description: "Residue positions to keep unchanged",
       },
     ],
     mockOutput: {
@@ -391,7 +516,24 @@ phi download JOB_ID --out ./esmfold_results
           mean_seq_recovery: 0.78,
           mean_perplexity: 4.2,
           sequences: [
-            { sequence: "MKVLWAASLT...", mpnn_score: 0.67, recovery: 0.80 },
+            {
+              label: "Design 1",
+              sequence: "MTYKLILNGKTLKGETTTEAVDAATAEKVFKQYANDNGVDGEWTYDDATKTFTVTE",
+              mpnn_score: 0.72,
+              recovery: 0.98,
+            },
+            {
+              label: "Design 2",
+              sequence: "MTYKLVLHGKTLKGETATEAVDAATQEIFKQYANDNGVDGEWTYNDATKTFTVTE",
+              mpnn_score: 0.67,
+              recovery: 0.82,
+            },
+            {
+              label: "Design 3",
+              sequence: "MAYKVILHGKALKGETTTEAIDAATAEKVFKEFANDNGVDGEWTYDEATKTVTVTE",
+              mpnn_score: 0.58,
+              recovery: 0.71,
+            },
           ],
         },
       },
@@ -480,6 +622,10 @@ phi download JOB_ID --out ./mpnn_results
       thirdPartyNote:
         "ProteinMPNN is developed by the Institute for Protein Design (IPD) at the University of Washington. Released under the MIT license.",
     },
+    examplePdb: {
+      label: "GB1 β1 domain",
+      url: "/mock/esmfold-gb1.pdb",
+    },
   },
   {
     id: "boltz",
@@ -514,22 +660,21 @@ phi download JOB_ID --out ./mpnn_results
     ],
     mockOutput: {
       metrics: {
-        plddt: 85.0,
+        mean_plddt: 85.4,
         ptm: 0.81,
-        iptm: 0.78,
-        i_pae: 5.1,
-        i_psae: 4.8,
       },
       json: {
         job_id: "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
         status: "completed",
+        mode: "monomer",
+        model_type: "boltz2",
+        num_chains: 1,
+        chain_lengths: [56],
         metrics: {
-          mean_plddt: 85.0,
-          mean_ptm: 0.81,
-          mean_iptm: 0.78,
-          mean_i_pae: 5.1,
-          mean_i_psae: 4.8,
+          summary: { mean_plddt: 85.4, ptm: 0.81 },
+          per_chain: [{ chain_id: "A", mean_plddt: 85.4, length: 56 }],
         },
+        plddt: [86.1, 87.2, 84.3, 88.5, 88.0, 91.4, 90.2, 93.0, 90.5, 92.1, 86.8, 86.0, 91.2, 91.3, 89.6, 84.1, 83.7, 80.0, 79.4, 80.9, 82.9, 80.4, 82.2, 79.6, 81.0, 83.0, 82.4, 78.9, 80.2, 83.3, 82.0, 79.6, 79.3, 84.3, 82.9, 80.2, 83.3, 80.4, 83.7, 82.9, 82.9, 85.4, 87.1, 84.6, 88.8, 87.2, 81.9, 88.8, 93.1, 88.9, 90.9, 88.3, 90.6, 88.2, 90.4, 91.1],
       },
     },
     curlExample: `curl -X POST ${BASE_URL}/jobs \\
@@ -613,6 +758,8 @@ phi download JOB_ID --out ./boltz_results
       thirdPartyNote:
         "Boltz is developed by Recursion / MIT. Released under the MIT license.",
     },
+    mockStructureUrl: "/mock/esmfold-gb1.pdb",
+    singleChainOnly: true,
   },
   {
     id: "chai1",
@@ -630,15 +777,21 @@ phi download JOB_ID --out ./boltz_results
     formFields: [],
     mockOutput: {
       metrics: {
-        plddt: 86.2,
+        mean_plddt: 86.2,
         ptm: 0.84,
-        iptm: 0.80,
-        i_pae: 4.9,
       },
       json: {
         job_id: "a987fbc9-4bed-3078-cf07-9141ba07c9f3",
         status: "completed",
-        metrics: { mean_plddt: 86.2, mean_ptm: 0.84, mean_iptm: 0.80, mean_i_pae: 4.9 },
+        mode: "monomer",
+        model_type: "chai1",
+        num_chains: 1,
+        chain_lengths: [56],
+        metrics: {
+          summary: { mean_plddt: 86.2, ptm: 0.84 },
+          per_chain: [{ chain_id: "A", mean_plddt: 86.2, length: 56 }],
+        },
+        plddt: [87.2, 88.3, 85.4, 89.6, 89.1, 92.5, 91.3, 94.1, 91.6, 93.3, 87.9, 87.1, 92.3, 92.4, 90.7, 85.2, 84.8, 81.1, 80.5, 82.0, 84.0, 81.5, 83.3, 80.7, 82.1, 84.1, 83.5, 80.0, 81.3, 84.4, 83.1, 80.7, 80.4, 85.4, 84.0, 81.3, 84.4, 81.5, 84.8, 84.0, 84.0, 86.5, 88.2, 85.7, 89.9, 88.3, 83.0, 89.9, 94.2, 90.0, 92.0, 89.4, 91.7, 89.3, 91.5, 92.2],
       },
     },
     curlExample: `curl -X POST ${BASE_URL}/jobs \\
@@ -715,6 +868,8 @@ phi download JOB_ID --out ./chai1_results
       thirdPartyNote:
         "Chai-1 is developed by Chai Discovery. Released under the Apache 2.0 license.",
     },
+    mockStructureUrl: "/mock/esmfold-gb1.pdb",
+    singleChainOnly: true,
   },
   {
     id: "af2rank",

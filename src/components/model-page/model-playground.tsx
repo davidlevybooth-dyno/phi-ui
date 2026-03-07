@@ -1,11 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { Copy, Check, Play, Loader2, Upload, FileDown, Layers } from "lucide-react";
+import dynamic from "next/dynamic";
+import { Copy, Check, Play, Loader2, Upload, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CodeHighlight } from "@/components/ui/code-highlight";
 import { type ModelInfo } from "@/lib/models-data";
+import { SequenceOutput, type SequenceEntry } from "@/components/viewer/SequenceOutput";
+
+// Dynamically imported with ssr:false — Molstar requires browser APIs
+const StructureViewer = dynamic(
+  () => import("@/components/viewer/StructureViewer").then((m) => m.StructureViewer),
+  { ssr: false }
+);
 
 // ---------------------------------------------------------------------------
 // Shared utilities
@@ -72,6 +80,18 @@ function ParamsPanel({
                 />
                 {values[field.key] ? "Enabled" : "Disabled"}
               </button>
+            ) : field.type === "select" && field.options ? (
+              <select
+                className={baseInput + " cursor-pointer"}
+                value={values[field.key] as string}
+                onChange={(e) => onChange(field.key, e.target.value)}
+              >
+                {field.options.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
             ) : (
               <input
                 type={field.type === "number" ? "number" : "text"}
@@ -138,7 +158,11 @@ function SequenceInput({
         <textarea
           className="w-full rounded-md border bg-background px-3 py-2 text-sm font-mono leading-relaxed focus:outline-none focus:ring-2 focus:ring-ring resize-none"
           rows={6}
-          placeholder="Single chain: MTYKLILNGKT…&#10;Multi-chain:  CHAIN_A…:CHAIN_B…"
+          placeholder={
+            model.singleChainOnly
+              ? "Amino acid sequence: MTYKLILNGKT…"
+              : "Single chain: MTYKLILNGKT…\nMulti-chain:  CHAIN_A…:CHAIN_B…"
+          }
           value={sequence}
           onChange={(e) => onSequenceChange(e.target.value)}
           spellCheck={false}
@@ -147,10 +171,19 @@ function SequenceInput({
         />
 
         <div className="flex items-center gap-2 min-h-[1.25rem]">
-          {detectedMode ? (
+          {model.singleChainOnly && sequence.includes(":") ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium border bg-destructive/10 text-destructive border-destructive/30">
+              <span className="size-1.5 rounded-full bg-destructive" />
+              {model.shortName} predicts single chains only — remove the &ldquo;:&rdquo; separator
+            </span>
+          ) : detectedMode ? (
             <span className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium border bg-muted text-foreground border-border">
               <span className="size-1.5 rounded-full bg-foreground" />
               {detectedMode === "multimer" ? "Multimer detected" : "Monomer detected"}
+            </span>
+          ) : model.singleChainOnly ? (
+            <span className="text-xs text-muted-foreground">
+              Single-chain only — does not model protein–protein interactions
             </span>
           ) : (
             <span className="text-xs text-muted-foreground">
@@ -168,7 +201,14 @@ function SequenceInput({
 
       <ParamsPanel fields={model.formFields} values={values} onChange={onParamChange} />
 
-      <RunBar onRun={onRun} running={running} disabled={sequence.trim().length === 0} />
+      <RunBar
+        onRun={onRun}
+        running={running}
+        disabled={
+          sequence.trim().length === 0 ||
+          (!!model.singleChainOnly && sequence.includes(":"))
+        }
+      />
     </div>
   );
 }
@@ -193,7 +233,18 @@ function PdbUploadInput({
   return (
     <div className="p-4 space-y-4">
       <div className="space-y-1.5">
-        <label className="text-xs font-medium">Target structure</label>
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-medium">Input structure</label>
+          {model.examplePdb && (
+            <button
+              type="button"
+              onClick={() => onFileChange(model.examplePdb!.label + ".pdb")}
+              className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+            >
+              Load example: {model.examplePdb.label}
+            </button>
+          )}
+        </div>
         <label className="flex flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed border-border bg-muted/20 px-6 py-8 text-center cursor-pointer hover:bg-muted/40 transition-colors">
           <Upload className="size-5 text-muted-foreground/50" />
           <span className="text-sm text-muted-foreground">
@@ -331,46 +382,37 @@ function CodeTab({ code, lang }: { code: string; lang: "bash" | "python" | "json
 // Output panels
 // ---------------------------------------------------------------------------
 
-function StructurePlaceholder({ ran, running }: { ran: boolean; running: boolean }) {
+
+function SequencesPanel({
+  ran,
+  running,
+  model,
+}: {
+  ran: boolean;
+  running: boolean;
+  model: ModelInfo;
+}) {
   if (running) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center px-6">
         <Loader2 className="size-8 text-muted-foreground/40 mb-3 animate-spin" />
-        <p className="text-sm text-muted-foreground">Predicting structure…</p>
+        <p className="text-sm text-muted-foreground">Designing sequences…</p>
       </div>
     );
   }
   if (!ran) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center px-6">
-        <div className="size-16 rounded-lg bg-muted flex items-center justify-center mb-4">
-          <ProteinIcon className="size-8 text-muted-foreground/30" />
-        </div>
-        <p className="text-sm text-muted-foreground">Run the model to see the predicted structure.</p>
-        <p className="text-xs text-muted-foreground/60 mt-1">3D viewer integration coming soon</p>
+        <Play className="size-8 text-muted-foreground/30 mb-3" />
+        <p className="text-sm text-muted-foreground">Run the model to see designed sequences.</p>
       </div>
     );
   }
-  return (
-    <div className="p-4 space-y-4">
-      <div className="rounded-md bg-muted/30 border border-dashed flex flex-col items-center justify-center py-10 text-center gap-3">
-        <div className="size-14 rounded-lg bg-muted flex items-center justify-center">
-          <ProteinIcon className="size-7 text-muted-foreground/50" />
-        </div>
-        <div>
-          <p className="text-sm font-medium">Structure predicted</p>
-          <p className="text-xs text-muted-foreground mt-0.5">3D viewer integration coming soon</p>
-        </div>
-        <Button variant="outline" size="sm" className="gap-1.5 mt-1">
-          <FileDown className="size-3.5" />
-          Download PDB
-        </Button>
-      </div>
-      <p className="text-xs text-muted-foreground">
-        Mock result — structure viewer will render here in a future update.
-      </p>
-    </div>
-  );
+  const raw = (model.mockOutput.json as Record<string, unknown>)?.metrics;
+  const seqs: SequenceEntry[] = Array.isArray((raw as Record<string, unknown>)?.sequences)
+    ? ((raw as Record<string, unknown>).sequences as SequenceEntry[])
+    : [];
+  return <SequenceOutput sequences={seqs} />;
 }
 
 function MetricsPanel({
@@ -468,25 +510,16 @@ function JsonPanel({
 }
 
 // ---------------------------------------------------------------------------
-// Protein icon SVG
-// ---------------------------------------------------------------------------
-
-function ProteinIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 48 48" className={className} fill="none">
-      <ellipse cx="24" cy="24" rx="18" ry="8" stroke="currentColor" strokeWidth="2" />
-      <ellipse cx="24" cy="24" rx="8" ry="18" stroke="currentColor" strokeWidth="2" />
-      <circle cx="24" cy="24" r="3" fill="currentColor" fillOpacity="0.3" />
-    </svg>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Root component
 // ---------------------------------------------------------------------------
 
+// Models that output AF2-style pLDDT scores — use the blue/orange confidence palette.
+const PLDDT_COLOR_MODELS = new Set(["alphafold2", "esmfold", "boltz"]);
+
 export function ModelPlayground({ model }: { model: ModelInfo }) {
   const showStructureTab = model.inputType === "sequence";
+  const showSequencesTab = model.id === "proteinmpnn";
+  const structureColorMode = PLDDT_COLOR_MODELS.has(model.id) ? "plddt" : "chain";
 
   const initialParams = Object.fromEntries(
     model.formFields.map((f) => [f.key, f.defaultValue ?? ""])
@@ -501,6 +534,10 @@ export function ModelPlayground({ model }: { model: ModelInfo }) {
 
   const handleRun = async () => {
     if (model.inputType === "sequence" && sequence.trim()) {
+      if (model.singleChainOnly && sequence.includes(":")) {
+        // Block multimer input for monomer-only models (ESMFold, Boltz GB1 example, Chai1 GB1 example)
+        return;
+      }
       setDetectedMode(sequence.includes(":") ? "multimer" : "monomer");
     }
     setRunning(true);
@@ -600,7 +637,7 @@ export function ModelPlayground({ model }: { model: ModelInfo }) {
 
       {/* ── Right — Output ── */}
       <div>
-        <Tabs defaultValue={showStructureTab ? "structure" : "metrics"}>
+        <Tabs defaultValue={showStructureTab ? "structure" : showSequencesTab ? "sequences" : "metrics"}>
           <div className="flex items-center justify-between border-b px-4 py-2 bg-muted/10">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
               Output
@@ -609,6 +646,11 @@ export function ModelPlayground({ model }: { model: ModelInfo }) {
               {showStructureTab && (
                 <TabsTrigger value="structure" className="text-xs px-2 py-1 h-6">
                   Structure
+                </TabsTrigger>
+              )}
+              {showSequencesTab && (
+                <TabsTrigger value="sequences" className="text-xs px-2 py-1 h-6">
+                  Sequences
                 </TabsTrigger>
               )}
               <TabsTrigger value="metrics" className="text-xs px-2 py-1 h-6">
@@ -622,7 +664,28 @@ export function ModelPlayground({ model }: { model: ModelInfo }) {
 
           {showStructureTab && (
             <TabsContent value="structure" className="m-0">
-              <StructurePlaceholder ran={ran} running={running} />
+              <StructureViewer
+                ran={ran}
+                running={running}
+                mockUrl={model.mockStructureUrl ?? "/mock/af2-gb1.pdb"}
+                colorMode={structureColorMode}
+                plddt={
+                  Array.isArray((model.mockOutput.json as Record<string, unknown>).plddt)
+                    ? ((model.mockOutput.json as Record<string, unknown>).plddt as number[])
+                    : undefined
+                }
+                chainLengths={
+                  Array.isArray((model.mockOutput.json as Record<string, unknown>).chain_lengths)
+                    ? ((model.mockOutput.json as Record<string, unknown>).chain_lengths as number[])
+                    : undefined
+                }
+              />
+            </TabsContent>
+          )}
+
+          {showSequencesTab && (
+            <TabsContent value="sequences" className="m-0">
+              <SequencesPanel ran={ran} running={running} model={model} />
             </TabsContent>
           )}
 

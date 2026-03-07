@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const JobStatusEnum = z.enum([
   "pending",
+  "submitted",  // staging API uses this instead of "pending" — treat as pending (gap A.4)
   "running",
   "completed",
   "failed",

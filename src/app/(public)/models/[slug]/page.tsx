@@ -89,7 +89,7 @@ export default async function ModelPage({ params }: Props) {
             <TabsList className="h-9 p-1 gap-0.5">
               <TabsTrigger value="experience" className="px-5">Experience</TabsTrigger>
               <TabsTrigger value="modelcard" className="px-5">Model Card</TabsTrigger>
-              <TabsTrigger value="schema" className="px-5">Schema</TabsTrigger>
+              <TabsTrigger value="schema" className="px-5">API</TabsTrigger>
               <TabsTrigger value="cli" className="px-5">CLI &amp; Skills</TabsTrigger>
             </TabsList>
           </div>

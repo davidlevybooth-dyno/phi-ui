@@ -41,6 +41,7 @@ Job management:
 import argparse
 import json
 import os
+import ssl
 import sys
 import time
 import urllib.error
@@ -92,6 +93,8 @@ DEFAULT_BASE_URL = "https://design.dynotx.com"
 POLL_INTERVAL      = 5     # seconds between status checks
 POLL_TIMEOUT       = 7200  # 2-hour maximum poll window
 TERMINAL_STATUSES  = {"completed", "failed", "cancelled"}
+# "submitted" is used by the staging backend instead of "pending" — tracked in backend gap A.4
+NON_TERMINAL_STATUSES = {"pending", "submitted", "running"}
 INGEST_TERMINAL    = {"READY", "FAILED"}
 UPLOAD_BATCH_SIZE  = 50    # filenames per signed-URL request
 UPLOAD_WORKERS     = 8     # parallel upload threads
@@ -99,6 +102,27 @@ UPLOAD_WORKERS     = 8     # parallel upload threads
 
 def _base_url() -> str:
     return os.environ.get("DYNO_API_BASE_URL", DEFAULT_BASE_URL).rstrip("/")
+
+
+def _ssl_context() -> ssl.SSLContext:
+    """Return an SSL context that works on macOS where system certs may be missing."""
+    ctx = ssl.create_default_context()
+    # Honour explicit override first (e.g. SSL_CERT_FILE=/opt/homebrew/etc/openssl@3/cert.pem)
+    env_cafile = os.environ.get("SSL_CERT_FILE")
+    if env_cafile and Path(env_cafile).exists():
+        ctx.load_verify_locations(env_cafile)
+        return ctx
+    # Try common macOS Homebrew / Linux system locations
+    for cafile in [
+        "/opt/homebrew/etc/openssl@3/cert.pem",
+        "/opt/homebrew/etc/openssl@1.1/cert.pem",
+        "/etc/ssl/cert.pem",
+        "/usr/local/etc/openssl/cert.pem",
+    ]:
+        if Path(cafile).exists():
+            ctx.load_verify_locations(cafile)
+            return ctx
+    return ctx  # fall back to default (works fine on Linux CI)
 
 
 def _api_key() -> str:
@@ -146,7 +170,7 @@ def _request(method: str, path: str, body: dict | None = None) -> dict:
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(url, data=data, headers=headers, method=method)
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        with urllib.request.urlopen(req, timeout=30, context=_ssl_context()) as resp:
             return json.loads(resp.read())
     except urllib.error.HTTPError as e:
         try:
@@ -178,7 +202,7 @@ def _put_file(signed_url: str, path: Path) -> None:
             method="PUT",
         )
         try:
-            with urllib.request.urlopen(req, timeout=300) as resp:
+            with urllib.request.urlopen(req, timeout=300, context=_ssl_context()) as resp:
                 _ = resp.read()
             return  # success
         except urllib.error.HTTPError as e:
@@ -538,6 +562,7 @@ def cmd_esmfold(args: argparse.Namespace) -> None:
     params: dict = {
         "num_recycles": args.recycles,
         "extract_confidence": not args.no_confidence,
+        "upload_to_gcs": True,
     }
     if not getattr(args, "dataset_id", None):
         params["fasta_str"] = _read_fasta(args)
@@ -554,6 +579,7 @@ def cmd_alphafold(args: argparse.Namespace) -> None:
         "num_recycles": args.recycles,
         "num_relax": args.relax,
         "use_templates": args.templates,
+        "upload_to_gcs": True,
     }
     if not getattr(args, "dataset_id", None):
         fasta_str = _read_fasta(args)
@@ -571,6 +597,7 @@ def cmd_proteinmpnn(args: argparse.Namespace) -> None:
     params: dict = {
         "num_sequences": args.num_sequences,
         "temperature": args.temperature,
+        "upload_to_gcs": True,
     }
     if not getattr(args, "dataset_id", None):
         if args.pdb:
@@ -586,7 +613,7 @@ def cmd_proteinmpnn(args: argparse.Namespace) -> None:
 
 def cmd_esm2(args: argparse.Namespace) -> None:
     """Protein language model scoring: per-position log-likelihood and perplexity."""
-    params: dict = {}
+    params: dict = {"upload_to_gcs": True}
     if not getattr(args, "dataset_id", None):
         params["fasta_str"] = _read_fasta(args)
     if args.mask:
@@ -599,6 +626,7 @@ def cmd_boltz(args: argparse.Namespace) -> None:
     params: dict = {
         "num_recycles": args.recycles,
         "use_msa": not args.no_msa,
+        "upload_to_gcs": True,
     }
     if not getattr(args, "dataset_id", None):
         params["fasta_str"] = _read_fasta(args)
@@ -691,6 +719,14 @@ def cmd_download(args: argparse.Namespace) -> None:
     s = _status(args.job_id)
     if s.get("status") != "completed":
         _die(f"Job is '{s.get('status')}' — can only download completed jobs")
+    # Fetch richer results (includes artifact_files and workflow_artifacts)
+    run_id = s.get("run_id")
+    if run_id:
+        try:
+            results = _request("GET", f"/runs/{run_id}/results")
+            s["_results"] = results
+        except PhiApiError:
+            pass  # Fall back to output_files from status
     _download_job(s, args.out)
 
 
@@ -707,21 +743,49 @@ def _read_fasta(args: argparse.Namespace) -> str:
 def _download_job(status: dict, out_dir: str) -> None:
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
-    files = status.get("output_files") or []
-    if not files:
-        print(f"  No output files listed for job {status.get('job_id')}")
-        return
-    print(f"\nDownloading {len(files)} file(s) to {out}/")
-    print("  (GCS URIs require gcloud auth — run: gcloud auth application-default login)")
-    for f in files:
-        gcs = f.get("gcs_url") or f.get("storage_path")
-        name = f.get("filename") or Path(str(gcs)).name if gcs else None
-        if name:
-            print(f"  gs://{gcs}" if gcs else f"  {name}")
-    # Write a manifest for easy reference
-    manifest = out / "manifest.json"
-    manifest.write_text(json.dumps(files, indent=2))
-    print(f"  manifest written → {manifest}")
+
+    # Prefer artifact_files from /runs/{run_id}/results over output_files from status
+    results = status.get("_results") or {}
+    artifact_files = results.get("artifact_files") or []
+    workflow_artifacts = results.get("workflow_artifacts") or {}
+    output_files = status.get("output_files") or []
+
+    if artifact_files:
+        print(f"\nArtifacts ({len(artifact_files)}) — download via signed URL:")
+        for af in artifact_files:
+            name = af.get("name") or af.get("artifact_id", "?")
+            url = af.get("download_url") or af.get("url")
+            print(f"  {name}")
+            if url:
+                print(f"    {url}")
+        manifest = out / "manifest.json"
+        manifest.write_text(json.dumps(artifact_files, indent=2))
+        print(f"  manifest written → {manifest}")
+    elif workflow_artifacts:
+        print(f"\nWorkflow artifacts:")
+        for key, val in workflow_artifacts.items():
+            print(f"  {key}: {val}")
+        manifest = out / "manifest.json"
+        manifest.write_text(json.dumps(workflow_artifacts, indent=2))
+        print(f"  manifest written → {manifest}")
+    elif output_files:
+        print(f"\nOutput files ({len(output_files)}) — stored in GCS:")
+        print("  (Use: gcloud storage cp gs://... ./ to download)")
+        for f in output_files:
+            name = f.get("name", "")
+            val = f.get("value", "")
+            if isinstance(val, list):
+                for v in val:
+                    print(f"  {v}")
+            else:
+                print(f"  {name}: {val}")
+        manifest = out / "manifest.json"
+        manifest.write_text(json.dumps(output_files, indent=2))
+        print(f"  manifest written → {manifest}")
+    else:
+        print(f"  No output files found for job {status.get('job_id')}")
+        print(f"  run_id: {status.get('run_id')}")
+        print(f"  Check: phi status {status.get('job_id')} --json")
 
 
 # ─────────────────────────── argument parser ─────────────────────────────────
