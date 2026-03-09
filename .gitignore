@@ -42,3 +42,7 @@ next-env.d.ts
 
 # cursor-generated docs (local only)
 /docs
+
+# Phi CLI development moved to separate repo; ignore any local Python artifacts
+skills/dyno-phi/__pycache__/
+skills/dyno-phi/*.egg-info/
