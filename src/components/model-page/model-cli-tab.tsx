@@ -18,9 +18,13 @@ phi jobs`;
 export function ModelCliTab({ model }: { model: ModelInfo }) {
   const masterSkill = CLAUDE_SKILLS.find((s) => s.id === "phi");
 
-  const handleSkillDownload = () => {
+  const handleSkillDownload = async () => {
     if (!masterSkill) return;
-    const blob = new Blob([masterSkill.content], { type: "text/markdown" });
+    const content =
+      masterSkill.downloadUrl != null
+        ? await fetch(masterSkill.downloadUrl).then((r) => (r.ok ? r.text() : ""))
+        : masterSkill.content ?? "";
+    const blob = new Blob([content], { type: "text/markdown" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
