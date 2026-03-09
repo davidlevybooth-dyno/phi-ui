@@ -53,12 +53,17 @@ export interface ModelCard {
   thirdPartyNote?: string;
 }
 
+/** "community" = open / third-party models; "exclusive" = Dyno-only (e.g. Dyno Psi). */
+export type ModelTier = "community" | "exclusive";
+
 export interface ModelInfo {
   id: string;
   name: string;
   shortName: string;
   citation: string;
   license: string;
+  /** Distinguishes community (open) models from exclusive (Dyno) models in the UI. */
+  tier: ModelTier;
   description: string;
   tagline: string;
   metrics: string[];
@@ -127,6 +132,7 @@ export const MODELS: ModelInfo[] = [
     shortName: "AF2",
     citation: "Jumper et al., Nature, 2021",
     license: "Apache 2.0 / CC BY 4.0",
+    tier: "community",
     tagline: "High-accuracy structure prediction for monomers and complexes",
     description:
       "High-accuracy structure prediction for single chains and multi-chain complexes. Separate chains with \":\" for multimer prediction — mode is inferred automatically from the input.",
@@ -383,6 +389,7 @@ phi download JOB_ID --out ./af2_results
     shortName: "ESM",
     citation: "Lin et al., Science, 2023",
     license: "MIT",
+    tier: "community",
     tagline: "Fast structure screening — 10–50× faster than AF2",
     description:
       "Single-sequence structure prediction using the ESM-2 language model. 10–50× faster than AlphaFold2, making it practical for high-throughput pre-screening before expensive AF2 validation.",
@@ -500,6 +507,7 @@ phi download JOB_ID --out ./esmfold_results
     shortName: "MPNN",
     citation: "Dauparas et al., Science, 2022",
     license: "MIT",
+    tier: "community",
     tagline: "Sequence design and sequence–structure scoring",
     description:
       "Inverse folding model for sequence design and scoring. Given a backbone structure, ProteinMPNN designs sequences likely to fold into that backbone and provides plausibility scores.",
@@ -665,6 +673,7 @@ phi download JOB_ID --out ./mpnn_results
     shortName: "Boltz",
     citation: "Wohlwend et al., BioRxiv 2024",
     license: "MIT",
+    tier: "community",
     tagline: "AF3-class prediction — proteins, DNA, RNA, ligands",
     description:
       "Open-weights AF3-class prediction for multi-molecular complexes including proteins, DNA, RNA, and small molecules. Boltz-2 adds improved interface accuracy.",
@@ -799,6 +808,7 @@ phi download JOB_ID --out ./boltz_results
     shortName: "Chai",
     citation: "Chai Discovery, BioRxiv 2024",
     license: "Apache 2.0",
+    tier: "community",
     tagline: "Foundation model for molecular structure",
     description:
       "Chai-1 is a foundation model for molecular structure prediction, providing an alternative to AlphaFold for protein–protein complexes with competitive accuracy.",
@@ -909,6 +919,7 @@ phi download JOB_ID --out ./chai1_results
     shortName: "AF2R",
     citation: "Stein & Kortemme, BioRxiv 2022",
     license: "MIT / Apache 2.0",
+    tier: "community",
     tagline: "Rank binder designs by predicted success",
     description:
       "Ranks binder designs using AF2-derived structural features. Produces a composite score that correlates with experimental binding success probability.",
@@ -1015,6 +1026,7 @@ phi download JOB_ID --out ./af2rank_results
     shortName: "ESM2",
     citation: "Lin et al., Science, 2023",
     license: "MIT",
+    tier: "community",
     tagline: "Protein language model — sequence plausibility",
     description:
       "Protein language model scoring. Computes evolutionary likelihood scores to identify implausible or out-of-distribution sequences before structural validation.",
@@ -1125,7 +1137,10 @@ export interface ClaudeSkill {
   version: string;
   filename: string;
   capabilities: string[];
-  content: string;
+  /** Inline content for download. Omit if downloadUrl is set. */
+  content?: string;
+  /** If set, download fetches from this URL instead of using content. */
+  downloadUrl?: string;
 }
 
 export const CLAUDE_SKILLS: ClaudeSkill[] = [
@@ -1144,189 +1159,6 @@ export const CLAUDE_SKILLS: ClaudeSkill[] = [
       "Biological research — PubMed, UniProt, PDB, and STRING queries with citations",
       "Job management — submit, poll, cancel, download results",
     ],
-    content: `---
-name: phi
-platform: dyno-phi
-version: "1.0"
-description: >
-  Single CLI for all Dyno Phi protein design capabilities.
-  One tool, all models — structure prediction, sequence design,
-  language model scoring, biological research, and job management.
-auth:
-  env_var: DYNO_API_KEY
-  setup_url: https://design.dynotx.com/dashboard/settings
----
-
-# Phi — Dyno Protein Design CLI
-
-A single command-line tool that gives your Claude agent access to all
-Dyno Phi capabilities. Install once, use for everything.
-
-## Setup
-
-\`\`\`bash
-# 1. Install
-pip install -e /path/to/skills/dyno-phi/
-# or: pip install git+https://github.com/dynotx/phi
-
-# 2. Set your API key (get one at design.dynotx.com/dashboard/settings)
-export DYNO_API_KEY=your_key_here
-# Add to ~/.zshrc or ~/.bashrc for persistence
-\`\`\`
-
-## All Commands
-
-\`\`\`bash
-# ── Dataset upload (batch runs) ───────────────────────────────────────────
-phi upload --dir ./designs/ --file-type pdb --run-id pdl1_batch
-# → dataset_id: dataset_abc  (use with --dataset-id below)
-
-phi datasets                          # list your datasets
-phi dataset dataset_abc               # show manifest + artifact count
-
-# ── Biological research ───────────────────────────────────────────────────
-phi research --question "What are PD-L1 binding hotspots?" --target PD-L1
-
-# ── Structure prediction ──────────────────────────────────────────────────
-# Quick try — single sequence
-phi esmfold --fasta sequences.fasta
-phi alphafold --fasta protein.fasta        # single chain
-phi alphafold --fasta complex.fasta        # multimer auto-detected from ':'
-phi boltz --fasta complex.fasta
-
-# Batch — dataset reference
-phi esmfold    --dataset-id dataset_abc --out ./screen
-phi alphafold  --dataset-id dataset_abc --out ./validation
-phi boltz      --dataset-id dataset_abc
-
-# ── Sequence design ───────────────────────────────────────────────────────
-phi proteinmpnn --pdb scaffold.pdb --num-sequences 50
-phi proteinmpnn --dataset-id dataset_abc --num-sequences 50
-
-# ── Language model scoring ────────────────────────────────────────────────
-phi esm2 --fasta designs.fasta
-phi esm2 --dataset-id dataset_abc
-
-# ── Job management ────────────────────────────────────────────────────────
-phi jobs                              # list recent jobs
-phi status JOB_ID                     # check a specific job
-phi cancel JOB_ID                     # cancel a running job
-phi download JOB_ID --out ./results   # download results
-\`\`\`
-
-## phi research — Biological Research Agent
-
-Query biological databases and get a structured Markdown report with citations.
-Use this before starting a design campaign to understand target biology.
-
-\`\`\`bash
-phi research [OPTIONS]
-
-  --question QUESTION   Research question (required)
-  --target TARGET       Protein/gene to focus the search (e.g. PD-L1, KRAS, EGFR)
-  --databases LIST      pubmed, uniprot, pdb, string (default: pubmed,uniprot,pdb)
-  --max-papers N        Max PubMed papers to retrieve (default: 20)
-  --structures          Include related PDB structures in the report
-  --context TEXT        Additional context for the query
-  --out DIR             Write report to DIR/research_report.md
-\`\`\`
-
-The report includes: summary, key findings, binding hotspots/functional residues,
-known PDB structures, related proteins, and numbered citations with PMID/DOI.
-
-## Key Flags (all submission commands)
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| \`--wait\` | on | Poll until job completes |
-| \`--no-wait\` | — | Return immediately after submission |
-| \`--out DIR\` | — | Write result manifest to DIR |
-| \`--run-id ID\` | — | Optional label for the run |
-| \`--json\` | — | Print raw JSON response |
-
-## Batch Workflow (100–50,000 files)
-
-All model commands accept a \`--dataset-id\` flag for batch runs. Upload your
-files once and reference the dataset in as many jobs as you need.
-
-\`\`\`bash
-# Step 1: upload files → staged ingest → versioned dataset
-phi upload --dir ./designs/ --file-type pdb --run-id pdl1_batch_001
-# Uploads in parallel, validates, returns:
-# ✓ Dataset ready
-#   dataset_id     : dataset_abc123
-#   artifact_count : 8421
-
-# Step 2: run the pipeline against the dataset (no re-upload needed)
-phi esmfold     --dataset-id dataset_abc123 --out ./screen
-phi alphafold   --dataset-id dataset_abc123 --out ./validation
-phi esm2        --dataset-id dataset_abc123
-
-# Step 3: download the metrics table (parquet) and top candidate structures
-phi download JOB_ID --out ./results
-
-# Dataset management
-phi datasets                      # list your datasets
-phi dataset dataset_abc123        # show manifest + artifact count
-\`\`\`
-
-**File types supported:** PDB structures (\`.pdb\`), FASTA sequences (\`.fasta\`), metrics CSV (\`.csv\`)
-
-**Scale:** 100 files use a single GPU task; 50,000 files are split into ~500 batches of 100
-
-## Recommended Pipeline
-
-\`\`\`
-0. Upload files     phi upload --dir ./designs/ --file-type pdb
-                    → dataset_id: dataset_abc
-
-1. Research target  phi research --question "..." --target TARGET
-
-2. Sequence design  phi proteinmpnn --dataset-id dataset_abc --num-sequences 50
-                    (or: phi proteinmpnn --pdb scaffold.pdb for single structure)
-
-3. Fast screen      phi esmfold --dataset-id dataset_abc --out ./screen
-                    → Filter: mean pLDDT ≥ 70
-
-4. Validate complex phi alphafold --dataset-id top_candidates_dataset --out ./af2
-                    → Filter: ipTM ≥ 0.70, ipSAE ≤ 6.0
-
-5. Sequence scoring phi esm2 --dataset-id top_candidates_dataset
-                    → Filter: perplexity ≤ 8.0
-\`\`\`
-
-## Key Metrics
-
-| Metric | Model | Pass threshold |
-|--------|-------|---------------|
-| \`mean_plddt\` | ESMFold, AF2 | ≥ 70 (screen), ≥ 85 (final) |
-| \`complex_iptm\` | AlphaFold2 | ≥ 0.70 |
-| \`complex_i_psae_mean\` | AlphaFold2 | ≤ 6.0 Å |
-| \`mpnn_score\` | ProteinMPNN | ≥ 0.40 |
-| \`perplexity\` | ESM-2 | ≤ 8.0 |
-
-## Example: Full Campaign from Claude
-
-\`\`\`
-User: "Design binders to PD-L1 and validate the top candidates."
-
-Claude agent workflow:
-  phi research --question "What are PD-L1/PD-1 binding hotspots?" --target PD-L1
-  phi proteinmpnn --pdb pdl1_structure.pdb --num-sequences 100 --temperature 0.1
-  phi esmfold --fasta designed_sequences.fasta --out ./esmfold_screen
-  # [filter sequences with pLDDT ≥ 70]
-  phi alphafold --fasta top_50.fasta --out ./af2_validation
-  # [filter with ipTM ≥ 0.70 and ipSAE ≤ 6.0]
-  phi esm2 --fasta final_candidates.fasta
-  # [report top 10 by composite score]
-\`\`\`
-
-## Environment Variables
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| \`DYNO_API_KEY\` | Yes | API key from design.dynotx.com/dashboard/settings |
-| \`DYNO_API_BASE_URL\` | No | Override API URL (default: https://design.dynotx.com) |
-`,
+    downloadUrl: "/api/skills/phi",
   },
 ];

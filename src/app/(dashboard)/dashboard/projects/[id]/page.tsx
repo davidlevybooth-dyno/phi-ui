@@ -3,7 +3,7 @@
 import { use } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, FolderOpen } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getProject, listAssetGroups } from "@/lib/api/projects";
@@ -56,13 +56,7 @@ export default function ProjectDetailPage({
             ))}
           </div>
         ) : assetGroups.length === 0 ? (
-          <Card className="flex flex-col items-center justify-center py-10 text-center">
-            <FolderOpen className="size-6 text-muted-foreground/30 mb-2" />
-            <p className="text-sm text-muted-foreground">No run groups yet.</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Submit jobs with this project ID to populate results here.
-            </p>
-          </Card>
+          <Card className="py-10" aria-hidden />
         ) : (
           <div className="space-y-2">
             {assetGroups.map((group) => {

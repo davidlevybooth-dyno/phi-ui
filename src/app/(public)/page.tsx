@@ -23,7 +23,7 @@ const WORKFLOW_STEPS = [
     icon: Cpu,
     number: "02",
     title: "Score",
-    description: "Run ESMFold, AlphaFold2, and ProteinMPNN on cloud GPUs. Results back in minutes.",
+    description: "Run scoring models - ESMFold, AlphaFold2, ProteinMPNN, etc. - on cloud GPUs.",
   },
   {
     icon: SlidersHorizontal,
@@ -35,7 +35,7 @@ const WORKFLOW_STEPS = [
     icon: Download,
     number: "04",
     title: "Download",
-    description: "Export ranked binder sequences and structures as FASTA and PDB files.",
+    description: "Export ranked binder sequences and structures, with reporting and lineage.",
   },
 ];
 
@@ -46,7 +46,7 @@ const fadeUp = (delay: number) => ({
 });
 
 export default function LandingPage() {
-  const [activeTab, setActiveTab] = useState("models");
+  const [activeTab, setActiveTab] = useState("skills");
 
   return (
     <div className="flex-1 flex flex-col bg-background">
@@ -145,9 +145,9 @@ export default function LandingPage() {
         {/* shadcn TabsList provides the pill-slider; we own the content */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="mb-8 mx-auto flex w-full max-w-sm">
-            <TabsTrigger value="models" className="flex-1">Models</TabsTrigger>
-            <TabsTrigger value="docs" className="flex-1">Docs</TabsTrigger>
             <TabsTrigger value="skills" className="flex-1">Skills</TabsTrigger>
+            <TabsTrigger value="docs" className="flex-1">Docs</TabsTrigger>
+            <TabsTrigger value="models" className="flex-1">Models</TabsTrigger>
           </TabsList>
         </Tabs>
 

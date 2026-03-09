@@ -5,6 +5,7 @@ import { useUser, useAuth as useClerkAuth, useClerk } from "@clerk/nextjs";
 import type { AuthUser } from "@/lib/auth/types";
 import { useSessionStore, useSettingsStore, getStoredCredentials } from "@/lib/stores/auth-store";
 import { configureCredentials } from "@/lib/api/credentials";
+import { getAuthMe } from "@/lib/api/upload";
 
 // Wire the credentials seam at module load. Every API call reads live from stores.
 configureCredentials(getStoredCredentials);
@@ -34,7 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { getToken } = useClerkAuth();
   const { signOut: clerkSignOut } = useClerk();
   const { setApiKey } = useSessionStore();
-  const { setUserId } = useSettingsStore();
+  const { setUserId, setOrgId } = useSettingsStore();
 
   useEffect(() => {
     if (!isSignedIn || !clerkUser) {
@@ -44,18 +45,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setUserId(clerkUser.id);
 
-    // Store a fresh Clerk session token in the credential store so the API client
-    // can read it synchronously. Clerk caches tokens for ~60s, so we refresh
-    // every 55s to ensure the stored token never expires between refreshes.
+    // Store a fresh Clerk session token and sync org/user from backend when
+    // GET /auth/me is available (so X-Organization-ID / X-User-ID match the API).
     const refresh = async () => {
       const token = await getToken();
       setApiKey(token);
+      try {
+        const me = await getAuthMe();
+        if (me.org_id) setOrgId(me.org_id);
+        setUserId(me.user_id);
+      } catch {
+        // Backend may not have /auth/me or Clerk; keep Clerk userId and defaults.
+      }
     };
 
     refresh();
     const interval = setInterval(refresh, 55_000);
     return () => clearInterval(interval);
-  }, [isSignedIn, clerkUser, getToken, setApiKey, setUserId]);
+  }, [isSignedIn, clerkUser, getToken, setApiKey, setUserId, setOrgId]);
 
   const user = isLoaded && clerkUser ? toAuthUser(clerkUser) : null;
 

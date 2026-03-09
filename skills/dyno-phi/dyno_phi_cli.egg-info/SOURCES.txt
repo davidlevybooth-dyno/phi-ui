@@ -5,4 +5,5 @@ dyno_phi_cli.egg-info/PKG-INFO
 dyno_phi_cli.egg-info/SOURCES.txt
 dyno_phi_cli.egg-info/dependency_links.txt
 dyno_phi_cli.egg-info/entry_points.txt
+dyno_phi_cli.egg-info/requires.txt
 dyno_phi_cli.egg-info/top_level.txt

@@ -28,6 +28,9 @@ Dataset management:
   phi datasets               # list your datasets
   phi dataset DATASET_ID     # show dataset details
 
+Authentication:
+  phi login                  # verify API key + print connection and identity
+
 Research:
   phi research --question "What are known PD-L1 binding hotspots?"
 
@@ -93,7 +96,8 @@ DEFAULT_BASE_URL = "https://design.dynotx.com"
 POLL_INTERVAL      = 5     # seconds between status checks
 POLL_TIMEOUT       = 7200  # 2-hour maximum poll window
 TERMINAL_STATUSES  = {"completed", "failed", "cancelled"}
-# "submitted" is used by the staging backend instead of "pending" — tracked in backend gap A.4
+# "submitted" kept for backward compat with jobs created before the 2026-03-07 backend fix.
+# New jobs return "pending" immediately on submission.
 NON_TERMINAL_STATUSES = {"pending", "submitted", "running"}
 INGEST_TERMINAL    = {"READY", "FAILED"}
 UPLOAD_BATCH_SIZE  = 50    # filenames per signed-URL request
@@ -152,8 +156,41 @@ class PhiApiError(Exception):
         super().__init__(msg)
 
 
+def _color_enabled(stream: object = None) -> bool:
+    """True if stream is a TTY and TERM supports color (for tasteful ANSI)."""
+    stream = stream or sys.stdout
+    if not getattr(stream, "isatty", lambda: False)():
+        return False
+    term = os.environ.get("TERM", "").lower()
+    return term != "dumb" and term != ""
+
+
+def _style(s: str, code: str, stream: object = None) -> str:
+    """Wrap string in ANSI code when color is enabled; otherwise return s unchanged."""
+    if not _color_enabled(stream):
+        return s
+    return f"\033[{code}m{s}\033[0m"
+
+
+def _dim(s: str, stream: object = None) -> str:
+    return _style(s, "2", stream)
+
+
+def _green(s: str, stream: object = None) -> str:
+    return _style(s, "32", stream)
+
+
+def _yellow(s: str, stream: object = None) -> str:
+    return _style(s, "33", stream)
+
+
+def _red(s: str, stream: object = None) -> str:
+    return _style(s, "31", stream)
+
+
 def _die(msg: str) -> NoReturn:
-    print(f"error: {msg}", file=sys.stderr)
+    out = _red(f"error: {msg}", sys.stderr) if _color_enabled(sys.stderr) else f"error: {msg}"
+    print(out, file=sys.stderr)
     sys.exit(1)
 
 
@@ -179,7 +216,7 @@ def _request(method: str, path: str, body: dict | None = None) -> dict:
             detail = e.reason
         raise PhiApiError(f"HTTP {e.code} — {detail}") from e
     except urllib.error.URLError as e:
-        raise PhiApiError(f"Network error — {e.reason}") from e
+        raise PhiApiError(f"Network error — {e.reason}\n  URL: {url}") from e
 
 
 _UPLOAD_RETRIES    = 3
@@ -221,6 +258,26 @@ def _put_file(signed_url: str, path: Path) -> None:
             raise RuntimeError(f"Upload failed for {path.name}: {e.reason}") from e
 
     raise RuntimeError(f"Upload failed for {path.name} after {_UPLOAD_RETRIES} attempts") from last_exc
+
+
+def _resolve_identity() -> None:
+    """Populate DYNO_USER_ID + DYNO_ORG_ID from GET /auth/me if not already set.
+
+    Upload endpoints require X-User-ID and X-Organization-ID headers.
+    Silently falls back to env-var defaults when /auth/me returns 404
+    (staging environments where Clerk is not yet wired up).
+    Run `phi login` to see current identity and connection status.
+    """
+    if os.environ.get("DYNO_USER_ID") and os.environ.get("DYNO_ORG_ID"):
+        return
+    try:
+        me = _request("GET", "/auth/me")
+        if not os.environ.get("DYNO_USER_ID"):
+            os.environ["DYNO_USER_ID"] = me.get("user_id") or ""
+        if not os.environ.get("DYNO_ORG_ID"):
+            os.environ["DYNO_ORG_ID"] = me.get("org_id") or ""
+    except PhiApiError:
+        pass  # staging / local: static key, no /auth/me — use env defaults
 
 
 def _submit(job_type: str, params: dict, run_id: str | None = None,
@@ -395,7 +452,7 @@ def _create_ingest_session(files: list[Path], args: argparse.Namespace) -> str:
         body["run_id"] = args.run_id
     if getattr(args, "file_type", None):
         body["file_type"] = args.file_type
-    session: IngestSessionResponse = _request("POST", "/ingest_sessions", body)
+    session: IngestSessionResponse = _request("POST", "/ingest_sessions/", body)
     # Accept either "session_id" or "id" as the session identifier
     session_id = session.get("session_id") or session.get("id")
     if not session_id:
@@ -470,8 +527,23 @@ def _print_dataset_ready(dataset_id: str | None, artifact_count: int) -> None:
     print(f"    phi proteinmpnn --dataset-id {dataset_id}")
 
 
+def _ensure_authenticated() -> None:
+    """Probe the API; on 401, exit with a clear message. Use before upload/job commands."""
+    try:
+        _request("GET", "/jobs/?page_size=1")
+    except PhiApiError as e:
+        if "401" in str(e):
+            _die(
+                "Not authenticated. Run 'phi login' to verify your API key and endpoint."
+            )
+        raise
+
+
 def cmd_upload(args: argparse.Namespace) -> None:
     """Upload local files → staged ingest → versioned dataset."""
+    _resolve_identity()  # populate X-User-ID + X-Organization-ID from /auth/me or env
+    _ensure_authenticated()
+
     if getattr(args, "gcs", None):
         print("  External GCS import is not yet available.")
         print("  The backend import worker is planned — see backend-api-gaps.md §9.")
@@ -507,7 +579,24 @@ def cmd_upload(args: argparse.Namespace) -> None:
     else:
         print(f"\n✓ Session finalized — ingestion running in background")
         print(f"  session_id: {session_id}")
-        print(f"  Check status: phi dataset-session {session_id}")
+        print(f"  Check status: phi ingest-session {session_id}")
+
+
+def cmd_ingest_session(args: argparse.Namespace) -> None:
+    """Show status of an ingest session (after upload + finalize)."""
+    result = _request("GET", f"/ingest_sessions/{args.session_id}")
+    if args.json:
+        print(json.dumps(result, indent=2))
+        return
+    print(f"session_id     : {result.get('session_id') or result.get('id', '?')}")
+    print(f"status         : {result.get('status', '?')}")
+    print(f"expected_files : {result.get('expected_files', '?')}")
+    print(f"uploaded_files : {result.get('uploaded_files', '?')}")
+    print(f"artifact_count : {result.get('artifact_count', '?')}")
+    if result.get("dataset_id"):
+        print(f"dataset_id     : {result.get('dataset_id')}")
+        print(f"\n  phi esmfold     --dataset-id {result.get('dataset_id')}")
+        print(f"  phi alphafold   --dataset-id {result.get('dataset_id')}")
 
 
 def cmd_datasets(args: argparse.Namespace) -> None:
@@ -530,7 +619,8 @@ def cmd_datasets(args: argparse.Namespace) -> None:
             f"{d.get('status', '?'):<10}  "
             f"{str(d.get('created_at', '?'))[:19]}"
         )
-    print(f"\n{result.get('total_count', len(datasets))} total dataset(s)")
+    total = result.get("total") or result.get("total_count") or len(datasets)
+    print(f"\n{total} total dataset(s)")
 
 
 def cmd_dataset(args: argparse.Namespace) -> None:
@@ -547,11 +637,14 @@ def cmd_dataset(args: argparse.Namespace) -> None:
     manifest = result.get("manifest_uri")
     if manifest:
         print(f"manifest_uri   : {manifest}")
-    artifacts = result.get("sample_artifacts") or []
-    if artifacts:
-        print(f"\nSample artifacts (first {len(artifacts)}):")
-        for a in artifacts:
-            print(f"  {a.get('artifact_id', '?'):<20}  {a.get('source_filename', '?'):<30}  {a.get('size', 0):>8} B")
+    # Backend returns "files" (sample list); older shape used "sample_artifacts"
+    files = result.get("files") or result.get("sample_artifacts") or []
+    if files:
+        print(f"\nSample files (first {len(files)}):")
+        for f in files:
+            fname = f.get("filename") or f.get("source_filename", "?")
+            size  = f.get("size_bytes") or f.get("size", 0)
+            print(f"  {fname:<40}  {size:>10} B")
     print(f"\nRun a job:")
     print(f"  phi esmfold   --dataset-id {result.get('dataset_id')}")
     print(f"  phi alphafold --dataset-id {result.get('dataset_id')}")
@@ -562,7 +655,6 @@ def cmd_esmfold(args: argparse.Namespace) -> None:
     params: dict = {
         "num_recycles": args.recycles,
         "extract_confidence": not args.no_confidence,
-        "upload_to_gcs": True,
     }
     if not getattr(args, "dataset_id", None):
         params["fasta_str"] = _read_fasta(args)
@@ -579,7 +671,6 @@ def cmd_alphafold(args: argparse.Namespace) -> None:
         "num_recycles": args.recycles,
         "num_relax": args.relax,
         "use_templates": args.templates,
-        "upload_to_gcs": True,
     }
     if not getattr(args, "dataset_id", None):
         fasta_str = _read_fasta(args)
@@ -597,7 +688,6 @@ def cmd_proteinmpnn(args: argparse.Namespace) -> None:
     params: dict = {
         "num_sequences": args.num_sequences,
         "temperature": args.temperature,
-        "upload_to_gcs": True,
     }
     if not getattr(args, "dataset_id", None):
         if args.pdb:
@@ -613,7 +703,7 @@ def cmd_proteinmpnn(args: argparse.Namespace) -> None:
 
 def cmd_esm2(args: argparse.Namespace) -> None:
     """Protein language model scoring: per-position log-likelihood and perplexity."""
-    params: dict = {"upload_to_gcs": True}
+    params: dict = {}
     if not getattr(args, "dataset_id", None):
         params["fasta_str"] = _read_fasta(args)
     if args.mask:
@@ -626,7 +716,6 @@ def cmd_boltz(args: argparse.Namespace) -> None:
     params: dict = {
         "num_recycles": args.recycles,
         "use_msa": not args.no_msa,
-        "upload_to_gcs": True,
     }
     if not getattr(args, "dataset_id", None):
         params["fasta_str"] = _read_fasta(args)
@@ -663,6 +752,81 @@ def cmd_research(args: argparse.Namespace) -> None:
                 print(report)
         elif args.out and final.get("status") == "completed":
             _download_job(final, args.out)
+
+
+def cmd_login(args: argparse.Namespace) -> None:
+    """Verify the configured API key and print connection details.
+
+    Tries GET /auth/me first. If that endpoint is not yet deployed (404),
+    falls back to a lightweight GET /jobs/ probe to confirm the key is accepted.
+    """
+    key = _api_key()
+    masked = key[:8] + "…" if len(key) > 8 else key
+    base = _base_url()
+    out = sys.stdout
+    use_color = _color_enabled(out)
+
+    # Primary: full identity from Clerk
+    try:
+        me = _request("GET", "/auth/me")
+        if args.json:
+            print(json.dumps(me, indent=2))
+            return
+        # Modern bordered output with tasteful color
+        rule = "─" * 50
+        if use_color:
+            rule = _green(rule, out)
+        print()
+        print("  " + rule)
+        print("  " + (_green("Dyno Phi", out) if use_color else "Dyno Phi"))
+        print("  " + rule)
+        print()
+        print("  " + (_green("✓ Logged in", out) if use_color else "✓ Logged in"))
+        print("  " + _dim(f"endpoint  {base}", out))
+        print("  " + _dim(f"API key   {masked}", out))
+        print()
+        print("  " + _dim("Identity", out))
+        print(f"    user_id      {me.get('user_id', '?')}")
+        print(f"    email        {me.get('email', '?')}")
+        print(f"    display_name {me.get('display_name', '?')}")
+        print(f"    org_id       {me.get('org_id', '?')}")
+        print(f"    org_name     {me.get('org_name', '?')}")
+        print()
+        print("  " + _dim("Tip: cache these to skip /auth/me on uploads:", out))
+        print(f"    export DYNO_USER_ID={me.get('user_id', 'YOUR_USER_ID')}")
+        print(f"    export DYNO_ORG_ID={me.get('org_id', 'YOUR_ORG_ID')}")
+        print()
+        return
+    except PhiApiError as exc:
+        if "404" not in str(exc):
+            _die(str(exc))
+        # 404 → endpoint not yet deployed; fall through to probe
+
+    # Fallback: probe the jobs list endpoint to confirm the key is valid
+    try:
+        _request("GET", "/jobs/?page_size=1")
+        if args.json:
+            print(json.dumps({"status": "connected", "auth_me": "not_deployed"}, indent=2))
+            return
+        rule = "─" * 50
+        if use_color:
+            rule = _green(rule, out)
+        print()
+        print("  " + rule)
+        print("  " + (_green("Dyno Phi", out) if use_color else "Dyno Phi"))
+        print("  " + rule)
+        print()
+        print("  " + (_green("✓ Logged in", out) if use_color else "✓ Logged in"))
+        print("  " + _dim(f"endpoint  {base}", out))
+        print("  " + _dim(f"API key   {masked}", out))
+        print()
+        print("  " + _dim("Note: User identity will appear here once GET /auth/me is deployed on this environment.", out))
+        print()
+    except PhiApiError as probe_exc:
+        msg = f"Authentication failed — {probe_exc}"
+        if "401" in str(probe_exc) and key.startswith("ak_"):
+            msg += "\n  This endpoint may not yet accept Clerk API keys (ak_…). Check backend config or use the API that is wired to Clerk."
+        _die(msg)
 
 
 def cmd_status(args: argparse.Namespace) -> None:
@@ -827,6 +991,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub = root.add_subparsers(dest="command", required=True)
 
+    # ── login ─────────────────────────────────────────────────────────────────
+    p = sub.add_parser("login", help="Verify API key and print connection + identity details")
+    p.add_argument("--json", action="store_true")
+
     # ── upload ────────────────────────────────────────────────────────────────
     p = sub.add_parser(
         "upload",
@@ -854,6 +1022,10 @@ def build_parser() -> argparse.ArgumentParser:
     # ── dataset ───────────────────────────────────────────────────────────────
     p = sub.add_parser("dataset", help="Show details for a dataset")
     p.add_argument("dataset_id")
+    p.add_argument("--json", action="store_true")
+
+    p = sub.add_parser("ingest-session", help="Show status of an ingest session")
+    p.add_argument("session_id", metavar="SESSION_ID")
     p.add_argument("--json", action="store_true")
 
     # ── esmfold ───────────────────────────────────────────────────────────────
@@ -949,9 +1121,11 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 COMMANDS = {
-    "upload":      cmd_upload,
-    "datasets":    cmd_datasets,
-    "dataset":     cmd_dataset,
+    "login":          cmd_login,
+    "upload":         cmd_upload,
+    "ingest-session": cmd_ingest_session,
+    "datasets":       cmd_datasets,
+    "dataset":        cmd_dataset,
     "esmfold":     cmd_esmfold,
     "alphafold":   cmd_alphafold,
     "proteinmpnn": cmd_proteinmpnn,

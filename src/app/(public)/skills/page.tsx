@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 import { SkillsTab } from "@/components/landing/skills-tab";
 
 export const metadata = {
-  title: "Claude Skills — Dyno Phi",
-  description: "Install Dyno Phi skills in Claude Code to run protein binder scoring from natural language.",
+  title: "Phi Skills — Dyno Phi",
+  description: "Install Phi Skills to give your coding agent access to Dyno Phi protein design APIs.",
 };
 
 export default function SkillsPage() {
@@ -18,9 +18,9 @@ export default function SkillsPage() {
             Back
           </Link>
         </Button>
-        <h1 className="text-2xl font-semibold tracking-tight mb-1">Claude Code Skills</h1>
+        <h1 className="text-2xl font-semibold tracking-tight mb-1">Phi Skills</h1>
         <p className="text-muted-foreground text-sm mb-8">
-          Install these skills in your Claude Code environment to access Dyno Phi APIs through natural language.
+          Install the Phi Skill to give your coding agent (e.g. Claude Code, Cursor) access to Dyno Phi APIs through natural language.
         </p>
         <SkillsTab />
       </div>

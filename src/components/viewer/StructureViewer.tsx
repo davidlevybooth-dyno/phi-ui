@@ -7,7 +7,7 @@
  * parent so that Molstar's browser-only APIs never run on the server.
  *
  * States:
- *   idle  (ran=false, running=false) — ProteinIcon placeholder
+ *   idle  (ran=false, running=false) — empty space
  *   running                          — spinner
  *   ran, loading                     — Molstar initialising / fetching CIF
  *   ran, loaded                      — Molstar canvas live
@@ -38,16 +38,6 @@ interface Props {
   running: boolean;
   ran: boolean;
   className?: string;
-}
-
-function ProteinIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 48 48" className={className} fill="none">
-      <ellipse cx="24" cy="24" rx="18" ry="8" stroke="currentColor" strokeWidth="2" />
-      <ellipse cx="24" cy="24" rx="8" ry="18" stroke="currentColor" strokeWidth="2" />
-      <circle cx="24" cy="24" r="3" fill="currentColor" fillOpacity="0.3" />
-    </svg>
-  );
 }
 
 // Matches the standard AF2 pLDDT confidence colour scale.
@@ -211,14 +201,7 @@ export function StructureViewer({
 
   // ── Idle ────────────────────────────────────────────────────────────────
   if (!ran && !running) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 text-center px-6">
-        <div className="size-16 rounded-lg bg-muted flex items-center justify-center mb-4">
-          <ProteinIcon className="size-8 text-muted-foreground/30" />
-        </div>
-        <p className="text-sm text-muted-foreground">Run the model to see the predicted structure.</p>
-      </div>
-    );
+    return <div className="w-full" style={{ height: 340 }} aria-hidden />;
   }
 
   // ── Running (mock delay) ────────────────────────────────────────────────

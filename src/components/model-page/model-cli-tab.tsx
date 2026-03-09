@@ -71,7 +71,7 @@ export function ModelCliTab({ model }: { model: ModelInfo }) {
       <Card className="p-5 space-y-3">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-medium">Claude Code Skill</h3>
+            <h3 className="text-sm font-medium">Phi Skill</h3>
             <p className="text-xs text-muted-foreground mt-0.5">
               The <code className="font-mono bg-muted px-1 rounded">phi</code> skill covers{" "}
               {model.name} and all other Dyno models — including batch workflows.

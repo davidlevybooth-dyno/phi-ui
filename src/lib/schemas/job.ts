@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const JobStatusEnum = z.enum([
   "pending",
-  "submitted",  // staging API uses this instead of "pending" — treat as pending (gap A.4)
+  "submitted",  // kept for backward compat with jobs created before 2026-03-07 backend fix
   "running",
   "completed",
   "failed",
@@ -26,6 +26,7 @@ export const JobTypeEnum = z.enum([
   "rfdiffusion3",
   "boltzgen",
   "esm2",
+  "research",
 ]);
 
 export const JobProgressSchema = z.object({

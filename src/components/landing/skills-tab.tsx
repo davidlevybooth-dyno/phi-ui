@@ -8,8 +8,15 @@ import { Badge } from "@/components/ui/badge";
 import { CodeHighlight } from "@/components/ui/code-highlight";
 import { CLAUDE_SKILLS, type ClaudeSkill } from "@/lib/models-data";
 
-function downloadSkill(skill: ClaudeSkill) {
-  const blob = new Blob([skill.content], { type: "text/markdown" });
+async function downloadSkill(skill: ClaudeSkill) {
+  const content =
+    skill.downloadUrl != null
+      ? await fetch(skill.downloadUrl).then((r) => {
+          if (!r.ok) throw new Error("Download failed");
+          return r.text();
+        })
+      : skill.content ?? "";
+  const blob = new Blob([content], { type: "text/markdown" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -27,14 +34,14 @@ export DYNO_API_KEY="your_key_here"
 
 # 3. Add the skill to your project
 #    Place phi-skill.md in your project's skills/ directory
-#    then reference it in CLAUDE.md:
+#    then reference it in your agent config (e.g. CLAUDE.md, .cursorrules):
 echo "Read skills/phi-skill.md for protein design." >> CLAUDE.md`;
 
-const EXAMPLE_SNIPPET = `# Ask Claude Code in natural language:
+const EXAMPLE_SNIPPET = `# Ask your coding agent in natural language:
 "Score these sequences with ESMFold and AlphaFold2,
  filter to ipTM > 0.70, and give me the top 10."
 
-# Claude uses phi commands under the hood:
+# Your agent uses phi commands under the hood:
 phi research   --question "What are PD-L1 binding hotspots?" --target PD-L1
 phi esmfold    --fasta designs.fasta --out ./screen
 phi alphafold  --fasta top_candidates.fasta --out ./validation
@@ -61,10 +68,11 @@ export function SkillsTab() {
     >
       {/* Header */}
       <div>
-        <h2 className="text-lg font-semibold mb-1">Claude Code Skills</h2>
+        <h2 className="text-lg font-semibold mb-1">Phi Skills</h2>
         <p className="text-sm text-muted-foreground max-w-xl">
-          One skill file gives Claude access to all Dyno Phi capabilities through
-          the <code className="font-mono text-xs bg-muted px-1 rounded">phi</code>{" "}
+          One skill file gives your coding agent (e.g. Claude Code, Cursor) access
+          to all Dyno Phi capabilities through the{" "}
+          <code className="font-mono text-xs bg-muted px-1 rounded">phi</code>{" "}
           CLI — structure prediction, sequence design, scoring, and biological
           research.
         </p>
@@ -121,7 +129,7 @@ export function SkillsTab() {
 
       {/* Example */}
       <Card className="p-5 space-y-3">
-        <h3 className="text-sm font-medium">Example: Claude Code conversation</h3>
+        <h3 className="text-sm font-medium">Example: agent conversation</h3>
         <CodeHighlight code={EXAMPLE_SNIPPET} lang="bash" />
         <p className="text-xs text-muted-foreground">
           All compute runs on Dyno cloud GPUs — no local GPU required.

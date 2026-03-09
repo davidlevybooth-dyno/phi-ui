@@ -404,12 +404,7 @@ function SequencesPanel({
     );
   }
   if (!ran) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 text-center px-6">
-        <Play className="size-8 text-muted-foreground/30 mb-3" />
-        <p className="text-sm text-muted-foreground">Run the model to see designed sequences.</p>
-      </div>
-    );
+    return <div className="min-h-[200px]" aria-hidden />;
   }
   return <SequenceOutput sequences={getDesignedSequences(model.mockOutput)} />;
 }
@@ -432,12 +427,7 @@ function MetricsPanel({
     );
   }
   if (!ran) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 text-center px-6">
-        <Play className="size-8 text-muted-foreground/30 mb-3" />
-        <p className="text-sm text-muted-foreground">Run the model to see scoring metrics.</p>
-      </div>
-    );
+    return <div className="min-h-[200px]" aria-hidden />;
   }
   return (
     <div className="p-4">
@@ -482,11 +472,7 @@ function JsonPanel({
   model: ModelInfo;
 }) {
   if (!ran && !running) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 text-center px-6">
-        <p className="text-sm text-muted-foreground">Run the model to see the JSON response.</p>
-      </div>
-    );
+    return <div className="min-h-[200px]" aria-hidden />;
   }
   if (running) {
     return (

@@ -63,8 +63,7 @@ export function CodeHighlight({ code, lang, className }: CodeHighlightProps) {
   return (
     <div
       ref={codeRef}
-      className={`overflow-x-auto rounded-md text-xs leading-relaxed [&>pre]:p-4 [&>pre]:rounded-md [&>pre]:overflow-x-auto ${className ?? ""}`}
-      // shiki outputs inline background; override to transparent so our bg shows
+      className={`overflow-x-auto rounded-md bg-muted text-xs leading-relaxed [&>pre]:!bg-transparent [&>pre]:p-4 [&>pre]:rounded-md [&>pre]:overflow-x-auto ${className ?? ""}`}
       style={{ colorScheme: "light dark" }}
       dangerouslySetInnerHTML={{ __html: html }}
     />

@@ -12,7 +12,7 @@ This file governs how AI agents should behave in this repository. Read it in ful
 - A user-facing dashboard that consumes Dyno Phi REST APIs deployed externally
 - Visualization and workflow tooling for computational scientists and biopharma developers
 
-This is a **frontend-only** application. All data and AI computation happens via external REST APIs. Do not introduce server-side infrastructure (databases, message queues, background workers) here.
+This is a **frontend-only** application. All data and AI computation happens via external REST APIs.
 
 ---
 

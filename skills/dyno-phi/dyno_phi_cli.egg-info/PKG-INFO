@@ -3,3 +3,4 @@ Name: dyno-phi-cli
 Version: 0.1.0
 Summary: CLI for the Dyno Phi protein design platform
 Requires-Python: >=3.10
+Requires-Dist: rich

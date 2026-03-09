@@ -154,13 +154,7 @@ export default function DashboardPage() {
               ))}
             </div>
           ) : recentJobs.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <Briefcase className="size-8 text-muted-foreground/40 mb-3" />
-              <p className="text-sm font-medium text-muted-foreground">No jobs yet</p>
-              <p className="text-xs text-muted-foreground mt-1 max-w-48">
-                Start the agent or submit a job to begin scoring your binder designs.
-              </p>
-            </div>
+            <div className="py-12" aria-hidden />
           ) : (
             <div className="divide-y">
               {recentJobs.map((job) => {

@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Plus, FolderOpen, ArrowRight } from "lucide-react";
+import { Plus, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -65,13 +65,11 @@ export default function ProjectsPage() {
           ))}
         </div>
       ) : projects.length === 0 ? (
-        <Card className="flex flex-col items-center justify-center py-16 text-center">
-          <FolderOpen className="size-8 text-muted-foreground/30 mb-3" />
-          <p className="text-sm text-muted-foreground">No projects yet</p>
+        <Card className="flex flex-col items-center justify-center py-16">
           <Button
             size="sm"
             variant="outline"
-            className="mt-4 gap-1.5"
+            className="gap-1.5"
             onClick={() => setCreateOpen(true)}
           >
             <Plus className="size-3.5" />

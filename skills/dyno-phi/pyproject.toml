@@ -7,7 +7,7 @@ name = "dyno-phi-cli"
 version = "0.1.0"
 description = "CLI for the Dyno Phi protein design platform"
 requires-python = ">=3.10"
-dependencies = []          # zero external dependencies — stdlib only
+dependencies = ["rich"]
 
 [project.scripts]
 phi = "phi:main"

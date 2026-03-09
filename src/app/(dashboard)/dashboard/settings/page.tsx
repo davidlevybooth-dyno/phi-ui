@@ -56,7 +56,7 @@ export default function SettingsPage() {
         <div>
           <h2 className="text-sm font-medium">API keys</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Long-lived keys for CLI usage, CI pipelines, and Claude Code skills. Keys are
+            Long-lived keys for CLI usage, CI pipelines, and Phi Skills. Keys are
             immediately revocable and never expire unless you set an expiry.
           </p>
         </div>
@@ -68,15 +68,17 @@ export default function SettingsPage() {
         <div>
           <p className="text-xs text-muted-foreground mb-2">Using your API key</p>
           <pre className="bg-muted rounded-md p-3 text-xs overflow-x-auto leading-relaxed">
-            <code>{`# CLI / shell script
-curl -X POST https://design.dynotx.com/api/v1/jobs/ \\
+            <code>{`# Base URL (no /api/v1 — phi appends it). Use http://localhost:8000 for local backend.
+export DYNO_API_BASE_URL="${process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://design.dynotx.com"}"
+export DYNO_API_KEY="YOUR_API_KEY"
+
+# Verify: phi login
+
+# Example curl
+curl -X POST ${process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://design.dynotx.com"}/api/v1/jobs/ \\
   -H "x-api-key: YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
-  -d '{ "job_type": "esmfold", "params": { ... } }'
-
-# Environment variable (Claude Code skills, CI pipelines)
-export DYNO_API_KEY="YOUR_API_KEY"
-export DYNO_API_BASE_URL="https://design.dynotx.com/api/v1"`}</code>
+  -d '{ "job_type": "esmfold", "params": { ... } }'`}</code>
           </pre>
         </div>
       </Card>
@@ -85,8 +87,8 @@ export DYNO_API_BASE_URL="https://design.dynotx.com/api/v1"`}</code>
       <Card className="p-5 space-y-4">
         <h2 className="text-sm font-medium">Organization settings</h2>
         <p className="text-xs text-muted-foreground">
-          These values are sent as request headers. They will be replaced by Clerk
-          organization management once the backend auth endpoint is available.
+          Sent as X-Organization-ID and X-User-ID on every request. Synced from GET
+          /auth/me when you sign in; override here if needed.
         </p>
         <Separator />
         <div className="grid grid-cols-2 gap-4">
