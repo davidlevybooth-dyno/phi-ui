@@ -27,9 +27,11 @@ async function downloadSkill(skill: ClaudeSkill) {
   URL.revokeObjectURL(url);
 }
 
-const INSTALL_PIP = `pip install dyno-phi`;
+const INSTALL_PIP = `# Requires Python ≥ 3.11
+pip install dyno-phi`;
 
-const INSTALL_UV = `uv tool install dyno-phi`;
+const INSTALL_UV = `# Requires Python ≥ 3.11
+uv tool install dyno-phi`;
 
 const SETUP_API_KEY = `# Get your key at design.dynotx.com/dashboard/settings
 export DYNO_API_KEY="your_key_here"`;
@@ -138,69 +140,23 @@ export function SkillsTab() {
         </div>
       </Card>
 
-      {/* Setup */}
+      {/* Setup — quick start */}
       <Card className="p-4 space-y-3">
         <h3 className="text-sm font-medium">Setup</h3>
 
-        {/* Step 1: Install */}
-        <div className="space-y-1">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              1 — Install the CLI
-            </p>
-            <div className="flex items-center rounded-md bg-muted p-0.5 gap-0.5 text-xs">
-              {(["uv", "pip"] as const).map((method) => (
-                <button
-                  key={method}
-                  onClick={() => setInstallMethod(method)}
-                  className={cn(
-                    "px-3 py-1 rounded font-mono transition-colors",
-                    installMethod === method
-                      ? "bg-background text-foreground shadow-sm dark:bg-zinc-600 dark:text-zinc-100"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {method}
-                </button>
-              ))}
-            </div>
-          </div>
-          <CodeHighlight
-            code={installMethod === "pip" ? INSTALL_PIP : INSTALL_UV}
-            lang="bash"
-          />
-          {installMethod === "uv" && (
-            <p className="text-xs text-muted-foreground">
-              New to uv?{" "}
-              <a
-                href="https://docs.astral.sh/uv/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline underline-offset-2 hover:text-foreground transition-colors"
-              >
-                docs.astral.sh/uv
-              </a>{" "}
-              — a fast Python package and project manager. Use{" "}
-              <code className="font-mono bg-muted px-1 rounded">uv tool install</code> to make{" "}
-              <code className="font-mono bg-muted px-1 rounded">phi</code> available globally without
-              activating a virtualenv.
-            </p>
-          )}
-        </div>
-
-        {/* Step 2: API key */}
+        {/* Step 1: API key */}
         <div className="space-y-1">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            2 — Get an API key
+            1 — Get an API key
           </p>
           <CodeHighlight code={SETUP_API_KEY} lang="bash" />
         </div>
 
-        {/* Step 3: Add skill */}
+        {/* Step 2: Add skill */}
         <div className="space-y-1">
           <div className="flex items-center justify-between">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              3 — Add the skill to your agent
+              2 — Add the skill to your agent
             </p>
             <div className="flex items-center rounded-md bg-muted p-0.5 gap-0.5 text-xs">
               {([
@@ -243,6 +199,52 @@ export function SkillsTab() {
             </p>
           )}
         </div>
+      </Card>
+
+      {/* Manual CLI install */}
+      <Card className="p-4 space-y-1">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            Install the CLI manually
+          </p>
+          <div className="flex items-center rounded-md bg-muted p-0.5 gap-0.5 text-xs">
+            {(["uv", "pip"] as const).map((method) => (
+              <button
+                key={method}
+                onClick={() => setInstallMethod(method)}
+                className={cn(
+                  "px-3 py-1 rounded font-mono transition-colors",
+                  installMethod === method
+                    ? "bg-background text-foreground shadow-sm dark:bg-zinc-600 dark:text-zinc-100"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {method}
+              </button>
+            ))}
+          </div>
+        </div>
+        <CodeHighlight
+          code={installMethod === "pip" ? INSTALL_PIP : INSTALL_UV}
+          lang="bash"
+        />
+        {installMethod === "uv" && (
+          <p className="text-xs text-muted-foreground">
+            New to uv?{" "}
+            <a
+              href="https://docs.astral.sh/uv/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-2 hover:text-foreground transition-colors"
+            >
+              docs.astral.sh/uv
+            </a>{" "}
+            — a fast Python package and project manager. Use{" "}
+            <code className="font-mono bg-muted px-1 rounded">uv tool install</code> to make{" "}
+            <code className="font-mono bg-muted px-1 rounded">phi</code> available globally without
+            activating a virtualenv.
+          </p>
+        )}
       </Card>
 
       {/* Example */}

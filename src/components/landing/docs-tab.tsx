@@ -98,10 +98,6 @@ const FAQ = [
     a: "You can use the drag-and-drop upload interface in the dashboard to upload FASTA or PDB files. Files are stored securely in GCS and referenced by URI in job submissions. Alternatively, pass a pre-existing GCS URI directly in the job params.",
   },
   {
-    q: "Which models are excluded from the initial release?",
-    a: "Rosetta-based scoring (RSO and PyRosetta Metrics) are excluded from the initial release due to licensing review. Generative models (RFDiffusion, Dyno Psi-1, BoltzGen) will be added in a future release.",
-  },
-  {
     q: "How do I integrate Psi-Phi with my coding agent?",
     a: "Download the Phi Skill from the Skills tab and place it in your project's skills directory. Set your API key as the DYNO_API_KEY environment variable. The skill instructs your coding agent (e.g. Claude Code, Cursor) how to call scoring, filtering, and workflow APIs.",
   },

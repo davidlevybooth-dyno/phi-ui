@@ -17,7 +17,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTheme } from "next-themes";
 import { Loader2, FileDown } from "lucide-react";
-import { MolstarWrapper } from "@/lib/viewer/MolstarWrapper";
+import type { MolstarWrapper as MolstarWrapperType } from "@/lib/viewer/MolstarWrapper";
 
 // Real AF2 multimer prediction (GB1 + peptide, 56+20 residues).
 // B-factor column contains per-residue pLDDT scores.
@@ -150,6 +150,7 @@ export function StructureViewer({
   className,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<MolstarWrapperType | null>(null);
   const [structureLoading, setStructureLoading] = useState(false);
   const [structureError, setStructureError] = useState<string | null>(null);
   const [structureReady, setStructureReady] = useState(false);
@@ -163,17 +164,22 @@ export function StructureViewer({
     }
   }, [ran]);
 
-  // Initialise and load when ran becomes true
+  // Initialise and load when ran becomes true.
+  // Molstar is imported dynamically here (not at module level) to keep it
+  // out of the page-load bundle and avoid Turbopack circular-dep errors.
   useEffect(() => {
     if (!ran || !containerRef.current) return;
 
     let mounted = true;
-    const wrapper = new MolstarWrapper();
 
     const run = async () => {
       setStructureLoading(true);
       setStructureError(null);
       try {
+        const { MolstarWrapper } = await import("@/lib/viewer/MolstarWrapper");
+        if (!mounted) return;
+        const wrapper = new MolstarWrapper();
+        wrapperRef.current = wrapper;
         const theme = resolvedTheme === "dark" ? "dark" : "light";
         await wrapper.init(containerRef.current!, theme);
         if (!mounted) return;
@@ -193,7 +199,8 @@ export function StructureViewer({
 
     return () => {
       mounted = false;
-      wrapper.dispose();
+      wrapperRef.current?.dispose();
+      wrapperRef.current = null;
     };
     // Re-run if the URL, colorMode, or the ran flag changes (not on every theme change)
     // eslint-disable-next-line react-hooks/exhaustive-deps

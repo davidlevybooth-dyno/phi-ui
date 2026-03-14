@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DynoLogo } from "@/components/shared/dyno-logo";
 import { ModelGrid } from "@/components/landing/model-grid";
-import { DocsTab } from "@/components/landing/docs-tab";
+import { DocsSection } from "@/components/landing/docs-section";
 import { SkillsTab } from "@/components/landing/skills-tab";
 import { FilterExplorer } from "@/components/landing/filter-explorer";
 
@@ -161,7 +161,7 @@ export default function LandingPage() {
             transition={{ duration: 0.2, ease: "easeOut" as const }}
           >
             {activeTab === "models" && <ModelGrid />}
-            {activeTab === "docs" && <DocsTab />}
+            {activeTab === "docs" && <DocsSection />}
             {activeTab === "skills" && <SkillsTab />}
             {activeTab === "filters" && <FilterExplorer />}
           </motion.div>
