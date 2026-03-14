@@ -1,19 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import dynamic from "next/dynamic";
 import { Copy, Check, Play, Loader2, Upload, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CodeHighlight } from "@/components/ui/code-highlight";
 import { type ModelInfo, getDesignedSequences } from "@/lib/models-data";
 import { SequenceOutput } from "@/components/viewer/SequenceOutput";
-
-// Dynamically imported with ssr:false — Molstar requires browser APIs
-const StructureViewer = dynamic(
-  () => import("@/components/viewer/StructureViewer").then((m) => m.StructureViewer),
-  { ssr: false }
-);
+import { StructureViewer } from "@/components/viewer/StructureViewer";
 
 // ---------------------------------------------------------------------------
 // Shared utilities
