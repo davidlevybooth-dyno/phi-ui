@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MODELS } from "@/lib/models-data";
-import { ModelPlaygroundClient } from "@/components/model-page/model-playground-client";
+import { ModelPlayground } from "@/components/model-page/model-playground";
 import { ModelCardTab } from "@/components/model-page/model-card-tab";
 import { ModelSchema } from "@/components/model-page/model-schema";
 import { ModelCliTab } from "@/components/model-page/model-cli-tab";
@@ -117,7 +117,7 @@ export default async function ModelPage({ params }: Props) {
                   to submit live jobs via the API or CLI and see results on your own sequences.
                 </p>
               </div>
-              <ModelPlaygroundClient model={model} />
+              <ModelPlayground model={model} />
             </TabsContent>
           )}
 
