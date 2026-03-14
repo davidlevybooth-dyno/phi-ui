@@ -73,7 +73,7 @@ export function ModelSchema({ model }: { model: ModelInfo }) {
         <div className="flex items-center gap-2 mt-2">
           <Badge className="font-mono text-xs">POST</Badge>
           <code className="font-mono text-xs bg-muted px-2 py-1 rounded">
-            https://design.dynotx.com/api/v1/jobs
+            https://api.dyno-agents.app/v1/phi/jobs
           </code>
         </div>
         <p className="text-xs text-muted-foreground mt-2">

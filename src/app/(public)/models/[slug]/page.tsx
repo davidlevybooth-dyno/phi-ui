@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -84,19 +84,42 @@ export default async function ModelPage({ params }: Props) {
         </div>
 
         {/* Main tabs */}
-        <Tabs defaultValue="experience">
+        <Tabs
+          defaultValue={
+            model.hasInteractiveExperience !== false ? "experience" : "modelcard"
+          }
+        >
           <div className="flex justify-center mb-10">
             <TabsList className="h-9 p-1 gap-0.5">
-              <TabsTrigger value="experience" className="px-5">Experience</TabsTrigger>
+              {model.hasInteractiveExperience !== false && (
+                <TabsTrigger value="experience" className="px-5">
+                  Experience
+                </TabsTrigger>
+              )}
               <TabsTrigger value="modelcard" className="px-5">Model Card</TabsTrigger>
               <TabsTrigger value="schema" className="px-5">API</TabsTrigger>
               <TabsTrigger value="cli" className="px-5">CLI &amp; Skills</TabsTrigger>
             </TabsList>
           </div>
 
-          <TabsContent value="experience" className="mt-0">
-            <ModelPlayground model={model} />
-          </TabsContent>
+          {model.hasInteractiveExperience !== false && (
+            <TabsContent value="experience" className="mt-0 space-y-4">
+              <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm dark:border-blue-800 dark:bg-blue-950/20">
+                <Info className="mt-0.5 size-4 shrink-0 text-blue-500 dark:text-blue-300" />
+                <p className="text-blue-800 dark:text-blue-100 leading-relaxed">
+                  These are cached example outputs — no live compute is performed here.{" "}
+                  <Link
+                    href="/login?mode=register"
+                    className="font-medium underline underline-offset-2 hover:no-underline"
+                  >
+                    Sign up
+                  </Link>{" "}
+                  to submit live jobs via the API or CLI and see results on your own sequences.
+                </p>
+              </div>
+              <ModelPlayground model={model} />
+            </TabsContent>
+          )}
 
           <TabsContent value="modelcard" className="mt-0">
             <ModelCardTab model={model} />

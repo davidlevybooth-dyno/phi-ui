@@ -20,7 +20,13 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { JobStatusBadge } from "@/components/shared/job-status-badge";
 import { getJobStatus, cancelJob, getJobLogStreamUrl } from "@/lib/api/jobs";
+import { ApiError } from "@/lib/api/client";
 import { getRunArtifacts, getDownloadUrl } from "@/lib/api/assets";
+import {
+  getJobTypeDisplayLabel,
+  getProgressStepDisplayLabel,
+  getDatasetIdFromJob,
+} from "@/lib/schemas/job";
 import { toast } from "sonner";
 
 interface LogEntry {
@@ -86,8 +92,14 @@ export default function JobDetailPage({
       await cancelJob(jobId);
       toast.success("Job cancelled");
       refetch();
-    } catch {
-      toast.error("Failed to cancel job");
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 502) {
+        toast.error(
+          "Cancellation failed — the workflow engine did not respond. The job may still stop on its own."
+        );
+      } else {
+        toast.error("Failed to cancel job");
+      }
     }
   };
 
@@ -132,12 +144,36 @@ export default function JobDetailPage({
             <h1 className="font-mono text-sm font-medium">{jobId.slice(0, 8)}…</h1>
             <JobStatusBadge status={job.status} />
             <Badge variant="outline" className="font-mono text-xs font-normal">
-              {(job as unknown as Record<string, unknown>).job_type as string ?? "job"}
+              {getJobTypeDisplayLabel(job.job_type ?? "job")}
             </Badge>
           </div>
-          <p className="text-xs text-muted-foreground">
-            Run: <span className="font-mono">{job.run_id.slice(0, 12)}…</span>
-          </p>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+            <span>
+              Run: <span className="font-mono">{job.run_id.slice(0, 12)}…</span>
+            </span>
+            {job.run_id && (
+              <Link
+                href={`/dashboard/results/${job.run_id}`}
+                className="text-primary hover:underline"
+              >
+                View results
+              </Link>
+            )}
+            {(() => {
+              const datasetId = getDatasetIdFromJob(job);
+              return datasetId ? (
+                <span>
+                  Dataset:{" "}
+                  <Link
+                    href={`/dashboard/datasets/${datasetId}`}
+                    className="text-primary hover:underline"
+                  >
+                    {datasetId.slice(0, 8)}…
+                  </Link>
+                </span>
+              ) : null;
+            })()}
+          </div>
         </div>
         <div className="flex gap-2">
           {(job.status === "running" || job.status === "pending") && (
@@ -167,7 +203,9 @@ export default function JobDetailPage({
       {job.progress && (
         <Card className="p-4 space-y-2">
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">{job.progress.current_step}</span>
+            <span className="text-muted-foreground">
+              {getProgressStepDisplayLabel(job.progress.current_step)}
+            </span>
             <span className="font-medium">{job.progress.percent_complete}%</span>
           </div>
           <Progress value={job.progress.percent_complete} className="h-1.5" />

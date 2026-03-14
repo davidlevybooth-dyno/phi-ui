@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTheme } from "next-themes";
 import { createHighlighter, type Highlighter } from "shiki";
 
 export type Lang = "bash" | "python" | "json" | "text";
@@ -24,31 +25,28 @@ interface CodeHighlightProps {
 }
 
 export function CodeHighlight({ code, lang, className }: CodeHighlightProps) {
+  const { resolvedTheme } = useTheme();
   const [html, setHtml] = useState<string | null>(null);
   const codeRef = useRef<HTMLDivElement>(null);
 
+  // Re-highlight whenever code, lang, or resolved theme changes so dark/light
+  // mode switches are reflected immediately without a remount.
   useEffect(() => {
     let cancelled = false;
-    // "text" has no syntax rules — render as plain preformatted
     if (lang === "text") {
       setHtml(null);
       return;
     }
     getHighlighter().then((hl) => {
       if (cancelled) return;
-      const rendered = hl.codeToHtml(code, {
-        lang,
-        themes: {
-          light: "github-light",
-          dark: "github-dark",
-        },
-      });
+      const theme = resolvedTheme === "dark" ? "github-dark" : "github-light";
+      const rendered = hl.codeToHtml(code, { lang, theme });
       setHtml(rendered);
     });
     return () => {
       cancelled = true;
     };
-  }, [code, lang]);
+  }, [code, lang, resolvedTheme]);
 
   if (!html) {
     return (
@@ -63,8 +61,7 @@ export function CodeHighlight({ code, lang, className }: CodeHighlightProps) {
   return (
     <div
       ref={codeRef}
-      className={`overflow-x-auto rounded-md bg-muted text-xs leading-relaxed [&>pre]:!bg-transparent [&>pre]:p-4 [&>pre]:rounded-md [&>pre]:overflow-x-auto ${className ?? ""}`}
-      style={{ colorScheme: "light dark" }}
+      className={`overflow-x-auto rounded-md text-xs leading-relaxed [&>pre]:p-4 [&>pre]:rounded-md [&>pre]:overflow-x-auto ${className ?? ""}`}
       dangerouslySetInnerHTML={{ __html: html }}
     />
   );

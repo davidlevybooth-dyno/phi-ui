@@ -5,7 +5,7 @@ import { useUser, useAuth as useClerkAuth, useClerk } from "@clerk/nextjs";
 import type { AuthUser } from "@/lib/auth/types";
 import { useSessionStore, useSettingsStore, getStoredCredentials } from "@/lib/stores/auth-store";
 import { configureCredentials } from "@/lib/api/credentials";
-import { getAuthMe } from "@/lib/api/upload";
+import { getAuthMe } from "@/lib/api/auth";
 
 // Wire the credentials seam at module load. Every API call reads live from stores.
 configureCredentials(getStoredCredentials);

@@ -499,6 +499,7 @@ function JsonPanel({
 // ---------------------------------------------------------------------------
 
 export function ModelPlayground({ model }: { model: ModelInfo }) {
+  const showTryTab = model.hasInteractiveExperience !== false;
   const showStructureTab = model.inputType === "sequence";
   const showSequencesTab = model.id === "proteinmpnn";
   const structureColorMode = model.outputColorMode ?? "chain";
@@ -536,15 +537,17 @@ export function ModelPlayground({ model }: { model: ModelInfo }) {
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 border rounded-lg overflow-hidden">
       {/* ── Left — Input ── */}
       <div className="border-r">
-        <Tabs defaultValue="try">
+        <Tabs defaultValue={showTryTab ? "try" : "shell"}>
           <div className="flex items-center justify-between border-b px-4 py-2 bg-muted/10">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
               Input
             </span>
             <TabsList className="h-7 p-0.5">
-              <TabsTrigger value="try" className="text-xs px-2 py-1 h-6">
-                Try
-              </TabsTrigger>
+              {showTryTab && (
+                <TabsTrigger value="try" className="text-xs px-2 py-1 h-6">
+                  Try
+                </TabsTrigger>
+              )}
               <TabsTrigger value="shell" className="text-xs px-2 py-1 h-6">
                 Shell
               </TabsTrigger>
@@ -554,39 +557,41 @@ export function ModelPlayground({ model }: { model: ModelInfo }) {
             </TabsList>
           </div>
 
-          <TabsContent value="try" className="m-0">
-            {model.inputType === "sequence" && (
-              <SequenceInput
-                model={model}
-                sequence={sequence}
-                onSequenceChange={setSequence}
-                detectedMode={detectedMode}
-                values={params}
-                onParamChange={handleParamChange}
-                onRun={handleRun}
-                running={running}
-              />
-            )}
-            {model.inputType === "pdb-upload" && (
-              <PdbUploadInput
-                model={model}
-                fileName={fileName}
-                onFileChange={setFileName}
-                values={params}
-                onParamChange={handleParamChange}
-                onRun={handleRun}
-                running={running}
-              />
-            )}
-            {model.inputType === "sequences-list" && (
-              <SequencesListInput
-                sequences={sequences}
-                onSequencesChange={setSequences}
-                onRun={handleRun}
-                running={running}
-              />
-            )}
-          </TabsContent>
+          {showTryTab && (
+            <TabsContent value="try" className="m-0">
+              {model.inputType === "sequence" && (
+                <SequenceInput
+                  model={model}
+                  sequence={sequence}
+                  onSequenceChange={setSequence}
+                  detectedMode={detectedMode}
+                  values={params}
+                  onParamChange={handleParamChange}
+                  onRun={handleRun}
+                  running={running}
+                />
+              )}
+              {model.inputType === "pdb-upload" && (
+                <PdbUploadInput
+                  model={model}
+                  fileName={fileName}
+                  onFileChange={setFileName}
+                  values={params}
+                  onParamChange={handleParamChange}
+                  onRun={handleRun}
+                  running={running}
+                />
+              )}
+              {model.inputType === "sequences-list" && (
+                <SequencesListInput
+                  sequences={sequences}
+                  onSequencesChange={setSequences}
+                  onRun={handleRun}
+                  running={running}
+                />
+              )}
+            </TabsContent>
+          )}
 
           <TabsContent value="shell" className="m-0">
             <CodeTab code={model.curlExample} lang="bash" />

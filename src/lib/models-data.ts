@@ -82,6 +82,11 @@ export interface ModelInfo {
   responseSchema: Record<string, unknown>;
   modelCard: ModelCard;
   /**
+   * When false, the Experience tab does not show the Try panel (only Shell and Python).
+   * Use for models that are not yet wired to an interactive demo.
+   */
+  hasInteractiveExperience?: boolean;
+  /**
    * Local /public/mock path for the structure viewer mock.
    * Single-chain models (ESMFold, Boltz, Chai1) → esmfold-gb1.pdb
    * Multi-chain models (AF2)                     → af2-gb1.pdb
@@ -107,7 +112,7 @@ export interface ModelInfo {
   outputColorMode?: "plddt" | "chain";
 }
 
-const BASE_URL = "https://design.dynotx.com/api/v1";
+const BASE_URL = "https://api.dyno-agents.app/v1/phi";
 
 // GB1 β1 domain — 56 residues, a gold-standard benchmark in computational protein design
 const GB1_EXAMPLE: ExampleSequence = {
@@ -1126,6 +1131,356 @@ phi download JOB_ID --out ./esm2_results
         "ESM-2 perplexity < 15 is a reasonable filter for de novo binder sequences. Per-position log-likelihoods highlight residues where the model is uncertain — useful for guiding subsequent ProteinMPNN redesign.",
       thirdPartyNote:
         "ESM-2 is developed by Meta AI Research. Released under the MIT license.",
+    },
+  },
+  {
+    id: "rfdiffusion",
+    name: "RFDiffusion",
+    shortName: "RFD1",
+    citation: "Watson et al., Nature, 2023",
+    license: "BSD-3-Clause",
+    tier: "community",
+    hasInteractiveExperience: false,
+    tagline: "Residue-level diffusion for de novo protein design",
+    description:
+      "Generative diffusion model for de novo protein design from the Baker Lab. Adapts RoseTTAFold into a denoising diffusion process to generate novel backbones for motif scaffolding, binder design, and symmetric oligomers. Open-source; run with a target PDB.",
+    metrics: ["plddt", "ptm", "rmsd"],
+    jobType: "rfdiffusion",
+    inputType: "pdb-upload",
+    formFields: [
+      {
+        key: "num_designs",
+        label: "Number of designs",
+        type: "number",
+        defaultValue: 10,
+        min: 1,
+        max: 100,
+        description: "How many backbones to generate",
+      },
+    ],
+    mockOutput: {
+      metrics: { mean_plddt: 81 },
+      json: {
+        job_id: "rfd1-mock-001",
+        status: "completed",
+        metrics: { mean_plddt: 81 },
+      },
+    },
+    curlExample: `curl -X POST ${BASE_URL}/jobs \\
+  -H "x-api-key: YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "job_type": "rfdiffusion",
+    "params": {
+      "pdb_gcs_uri": "gs://bucket/target.pdb",
+      "num_designs": 10
+    }
+  }'`,
+    pythonExample: `import requests
+resp = requests.post("${BASE_URL}/jobs", headers={"x-api-key": "YOUR_API_KEY"}, json={"job_type": "rfdiffusion", "params": {"pdb_gcs_uri": "gs://bucket/target.pdb", "num_designs": 10}})
+print(resp.json()["job_id"])`,
+    cliQuickExample: `phi rfdiffusion --pdb target.pdb --num-designs 20`,
+    cliBatchExample: `phi upload --dir ./targets/ --file-type pdb --run-id rfd1_batch\nphi rfdiffusion --dataset-id dataset_abc123 --num-designs 20`,
+    requestSchema: {
+      job_type: { type: "string", const: "rfdiffusion" },
+      params: {
+        type: "object",
+        properties: {
+          pdb_gcs_uri: { type: "string" },
+          num_designs: { type: "integer", default: 10 },
+        },
+      },
+    },
+    responseSchema: { job_id: { type: "string" }, status: { type: "string" } },
+    modelCard: {
+      overview:
+        "RFDiffusion is a generative deep learning method for de novo protein design from the Baker Lab (Nature, 2023). It adapts RoseTTAFold's structure prediction network into a denoising diffusion model that iteratively refines noisy residue frames over ~200 steps to produce realistic protein structures. The model supports unconditional generation, motif scaffolding, binder design to target molecules, symmetric oligomer design, and design diversification.",
+      useCases: [
+        "De novo protein backbone generation",
+        "Motif scaffolding around functional sites",
+        "Binder design for a target protein or molecule",
+        "Symmetric oligomer and assembly design",
+        "Generating diverse backbone candidates for sequence design",
+      ],
+      performanceNotes:
+        "RFDiffusion significantly reduces the number of sequences needed for experimental validation compared to traditional methods—often under 100 sequences per design challenge. Validated outcomes include picomolar-affinity binders and symmetric assemblies confirmed by structural biology. Pair with ProteinMPNN for sequence design and AlphaFold2 or Boltz for structure validation.",
+      thirdPartyNote:
+        "RFDiffusion is developed by the Baker Lab (UW). Training and inference code are open-source via Rosetta Commons on GitHub.",
+    },
+  },
+  {
+    id: "rfdiffusion3",
+    name: "RFDiffusion3",
+    shortName: "RF3",
+    citation: "Institute for Protein Design / Rosetta Commons, 2025",
+    license: "BSD-3-Clause",
+    tier: "community",
+    hasInteractiveExperience: false,
+    tagline: "Atom-level de novo protein backbone generation",
+    description:
+      "Atom-level diffusion model for de novo protein design from the Institute for Protein Design. Models each residue with full backbone and side-chain atoms for precise binding and catalysis. Unified foundation for symmetric, binding, and enzyme design; ~10× faster than RFD2.",
+    metrics: ["plddt", "ptm", "iptm", "rmsd"],
+    jobType: "rfdiffusion3",
+    inputType: "pdb-upload",
+    formFields: [
+      {
+        key: "num_designs",
+        label: "Number of designs",
+        type: "number",
+        defaultValue: 10,
+        min: 1,
+        max: 100,
+        description: "How many backbones to generate",
+      },
+    ],
+    mockOutput: {
+      metrics: { mean_plddt: 82 },
+      json: {
+        job_id: "rfd3-mock-001",
+        status: "completed",
+        metrics: { mean_plddt: 82 },
+      },
+    },
+    curlExample: `curl -X POST ${BASE_URL}/jobs \\
+  -H "x-api-key: YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "job_type": "rfdiffusion3",
+    "params": {
+      "pdb_gcs_uri": "gs://bucket/target.pdb",
+      "num_designs": 10
+    }
+  }'`,
+    pythonExample: `import requests
+resp = requests.post("${BASE_URL}/jobs", headers={"x-api-key": "YOUR_API_KEY"}, json={"job_type": "rfdiffusion3", "params": {"pdb_gcs_uri": "gs://bucket/target.pdb", "num_designs": 10}})
+print(resp.json()["job_id"])`,
+    cliQuickExample: `phi rfdiffusion3 --pdb target.pdb --num-designs 20`,
+    cliBatchExample: `phi upload --dir ./targets/ --file-type pdb --run-id rf3_batch\nphi rfdiffusion3 --dataset-id dataset_abc123 --num-designs 20`,
+    requestSchema: {
+      job_type: { type: "string", const: "rfdiffusion3" },
+      params: {
+        type: "object",
+        properties: {
+          pdb_gcs_uri: { type: "string" },
+          num_designs: { type: "integer", default: 10 },
+        },
+      },
+    },
+    responseSchema: { job_id: { type: "string" }, status: { type: "string" } },
+    modelCard: {
+      overview:
+        "RFDiffusion3 (RFD3) is a state-of-the-art atom-level diffusion model for protein design from the Institute for Protein Design. Unlike residue-level RFD1, it treats each residue with 4 backbone and 10 side-chain atoms, enabling precise chemical interactions. It serves as a unified foundation for symmetric assemblies, binder design, and enzyme design, with a new denoising procedure that improves conditioning. RFD3 is approximately 10× faster than RFdiffusion2 and outperforms it on the majority of enzyme design benchmarks.",
+      useCases: [
+        "Binder scaffold generation for proteins and nucleic acids",
+        "Symmetric oligomer and assembly design",
+        "Enzyme active site and catalytic design",
+        "DNA-binding and biosensor protein design",
+        "Backbone generation for downstream sequence design (e.g. ProteinMPNN)",
+      ],
+      performanceNotes:
+        "RFD3 achieves strong pass rates on monomeric and dimeric DNA-binding benchmarks and generates more diverse structures and docking poses than earlier versions. Combine with ProteinMPNN for sequence design and AlphaFold2 or Boltz for structure validation.",
+      thirdPartyNote:
+        "RFDiffusion3 is developed by the Institute for Protein Design (UW) and Rosetta Commons. Training code and model weights are available via the Rosetta Commons Foundry.",
+    },
+  },
+  {
+    id: "boltzgen",
+    name: "BoltzGen",
+    shortName: "BG",
+    citation: "Recursion / MIT Jameel Clinic, 2024",
+    license: "MIT",
+    tier: "community",
+    hasInteractiveExperience: false,
+    tagline: "All-atom diffusion for protein and peptide design",
+    description:
+      "All-atom generative diffusion model that unifies protein design and structure prediction. Designs proteins and peptides to bind proteins, nucleic acids, and small molecules with state-of-the-art folding. Flexible constraints for binding sites, secondary structure, and covalent bonds.",
+    metrics: ["plddt", "ptm", "iptm", "rmsd"],
+    jobType: "boltzgen",
+    inputType: "pdb-upload",
+    formFields: [
+      {
+        key: "num_designs",
+        label: "Number of designs",
+        type: "number",
+        defaultValue: 5,
+        min: 1,
+        max: 50,
+        description: "How many designs to generate",
+      },
+    ],
+    mockOutput: {
+      metrics: { mean_plddt: 85 },
+      json: {
+        job_id: "boltzgen-mock-001",
+        status: "completed",
+        metrics: { mean_plddt: 85 },
+      },
+    },
+    curlExample: `curl -X POST ${BASE_URL}/jobs \\
+  -H "x-api-key: YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "job_type": "boltzgen",
+    "params": {
+      "pdb_gcs_uri": "gs://bucket/target.pdb",
+      "num_designs": 5
+    }
+  }'`,
+    pythonExample: `import requests
+resp = requests.post("${BASE_URL}/jobs", headers={"x-api-key": "YOUR_API_KEY"}, json={"job_type": "boltzgen", "params": {"pdb_gcs_uri": "gs://bucket/target.pdb", "num_designs": 5}})
+print(resp.json()["job_id"])`,
+    cliQuickExample: `phi boltzgen --pdb target.pdb --num-designs 5`,
+    cliBatchExample: `phi upload --dir ./targets/ --file-type pdb --run-id boltzgen_batch\nphi boltzgen --dataset-id dataset_abc123 --num-designs 5`,
+    requestSchema: {
+      job_type: { type: "string", const: "boltzgen" },
+      params: {
+        type: "object",
+        properties: {
+          pdb_gcs_uri: { type: "string" },
+          num_designs: { type: "integer", default: 5 },
+        },
+      },
+    },
+    responseSchema: { job_id: { type: "string" }, status: { type: "string" } },
+    modelCard: {
+      overview:
+        "BoltzGen is an all-atom generative diffusion model for protein and peptide design from Recursion and the MIT Jameel Clinic. It unifies design and structure prediction in a single framework with geometry-based residue encoding, achieving state-of-the-art folding while generating designs. The model supports a flexible constraint language for covalent bonds, structure groups, binding sites, secondary structure, and design masks, and can target proteins, nucleic acids, and small molecules.",
+      useCases: [
+        "Protein and nanobody binder design to novel targets",
+        "Minibinder and peptide design, including cyclic peptides",
+        "Ligand-aware and small-molecule binding site design",
+        "Designs targeting disordered proteins",
+        "Precise binding geometry with side-chain placement from the start",
+      ],
+      performanceNotes:
+        "BoltzGen was validated across eight design campaigns and 26 biomolecular targets. On nine novel targets with low similarity to training data, 66% achieved nanomolar-affinity binders across nanobody and protein modalities. Use when side-chain and binding geometry matter from the start; validate with AlphaFold2 or Boltz.",
+      thirdPartyNote:
+        "BoltzGen is developed by Recursion and the MIT Jameel Clinic. Model weights, training code, and inference code are open-source under the MIT license and available on GitHub.",
+    },
+  },
+  {
+    id: "openfold3",
+    name: "OpenFold3",
+    shortName: "OF3",
+    citation: "OpenFold Consortium / NVIDIA, 2024",
+    license: "Apache 2.0",
+    tier: "community",
+    hasInteractiveExperience: false,
+    tagline: "Third-generation biomolecular complex structure prediction",
+    description:
+      "Third-generation biomolecular foundation model that predicts the three-dimensional structures of molecular complexes — proteins, DNA, RNA, and small-molecule ligands — in a single unified pass. Built by the OpenFold Consortium and accelerated via NVIDIA NIM. Particularly strong for protein–nucleic acid complexes, transcription factor interfaces, and CRISPR effector structures.",
+    metrics: ["plddt", "ptm"],
+    jobType: "openfold3",
+    inputType: "sequence",
+    formFields: [
+      {
+        key: "output_format",
+        label: "Output format",
+        type: "select",
+        defaultValue: "pdb",
+        description: "Structure output format",
+        options: [
+          { value: "pdb", label: "PDB" },
+          { value: "mmcif", label: "mmCIF" },
+        ],
+      },
+    ],
+    mockOutput: {
+      metrics: {
+        mean_plddt: 87.3,
+        ptm: 0.82,
+      },
+      json: {
+        job_id: "of3-mock-001",
+        status: "completed",
+        plddt: [88, 89, 91, 90, 87, 85, 86, 88, 90, 87],
+        ptm: 0.82,
+      },
+    },
+    curlExample: `curl -X POST ${BASE_URL}/jobs \\
+  -H "x-api-key: YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "job_type": "openfold3",
+    "params": {
+      "molecules": [
+        {
+          "type": "protein",
+          "id": "A",
+          "sequence": "MGREEPLNHVEAERQRREKLNQRFYALRAVVPNVSKMDKASLLGDAIAYINELKSKVVK"
+        },
+        {
+          "type": "dna",
+          "id": "B",
+          "sequence": "AGGAACACGTGACCC"
+        },
+        {
+          "type": "dna",
+          "id": "C",
+          "sequence": "TGGGTCACGTGTTCC"
+        }
+      ],
+      "output_format": "pdb"
+    }
+  }'`,
+    pythonExample: `import requests
+
+resp = requests.post(
+    "${BASE_URL}/jobs",
+    headers={"x-api-key": "YOUR_API_KEY"},
+    json={
+        "job_type": "openfold3",
+        "params": {
+            "molecules": [
+                {"type": "protein", "id": "A",
+                 "sequence": "MGREEPLNHVEAERQRREKLNQRFYALRAVVPNVSKMDKASLLGDAIAYINELKSKVVK"},
+                {"type": "dna", "id": "B", "sequence": "AGGAACACGTGACCC"},
+                {"type": "dna", "id": "C", "sequence": "TGGGTCACGTGTTCC"},
+            ],
+            "output_format": "pdb",
+        },
+    },
+)
+print(resp.json()["job_id"])`,
+    cliQuickExample: `phi openfold3 --fasta protein.fasta --wait`,
+    cliBatchExample: `phi openfold3 --fasta protein.fasta --dna "AGGAACACGTGACCC" --wait --out ./of3_results/`,
+    requestSchema: {
+      job_type: { type: "string", const: "openfold3" },
+      params: {
+        type: "object",
+        properties: {
+          molecules: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                type: { type: "string", enum: ["protein", "dna", "rna"] },
+                id: { type: "string", description: "Chain identifier" },
+                sequence: { type: "string" },
+              },
+              required: ["type", "id", "sequence"],
+            },
+          },
+          output_format: { type: "string", enum: ["pdb", "mmcif"], default: "pdb" },
+        },
+        required: ["molecules"],
+      },
+    },
+    responseSchema: { job_id: { type: "string" }, status: { type: "string" } },
+    modelCard: {
+      overview:
+        "OpenFold3 is a third-generation biomolecular foundation model developed by the OpenFold Consortium and deployed via NVIDIA NIM. It predicts the three-dimensional structures of molecular complexes involving proteins, DNA, RNA, and small-molecule ligands in a single unified framework. The model handles multi-chain inputs with per-molecule type definitions, providing per-residue pLDDT confidence estimates and global pTM scores. It is particularly strong for protein–nucleic acid interfaces, outperforming prior models on DNA-binding protein and CRISPR effector benchmarks.",
+      useCases: [
+        "Protein–DNA and protein–RNA complex structure prediction",
+        "Multi-chain protein complex prediction (strong alternative to AlphaFold2)",
+        "CRISPR effector, transcription factor, and riboprotein structure modeling",
+        "Nucleic acid binding interface analysis for binder design",
+        "High-confidence monomer and multimer fold prediction",
+      ],
+      performanceNotes:
+        "OpenFold3 achieves competitive accuracy with AlphaFold3 on protein–nucleic acid complexes and is especially useful when modeling DNA or RNA binding partners alongside protein chains. Use the phi CLI or REST API to submit protein+DNA/RNA combinations. Validate binder designs downstream with phi filter or phi complex_folding.",
+      thirdPartyNote:
+        "OpenFold3 is developed by the OpenFold Consortium. Model weights are available under the Apache 2.0 license. Accelerated inference is available through NVIDIA NIM at health.api.nvidia.com.",
     },
   },
 ];

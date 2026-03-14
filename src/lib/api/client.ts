@@ -3,10 +3,12 @@ import { getApiCredentials } from "./credentials";
 const FETCH_TIMEOUT_MS = 30_000;
 
 // Single source of truth for the API base URL.
-// Override via NEXT_PUBLIC_API_BASE_URL for local dev or staging.
+// Override for local API testing: set NEXT_PUBLIC_API_BASE_URL or NEXT_PUBLIC_DYNO_API_BASE_URL
+// (e.g. NEXT_PUBLIC_API_BASE_URL=http://localhost:8000). Next.js only exposes NEXT_PUBLIC_* to the client.
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ??
-  "https://design.dynotx.com";
+  process.env.NEXT_PUBLIC_DYNO_API_BASE_URL ??
+  "https://api.dyno-agents.app";
 
 export class ApiError extends Error {
   constructor(

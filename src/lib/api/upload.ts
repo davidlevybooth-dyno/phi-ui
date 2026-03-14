@@ -1,20 +1,19 @@
 import { apiGet, apiPost } from "./client";
-import type {
-  AuthMeResponse,
-  UploadUrlRequest,
-  UploadUrlResponse,
-  IngestSession,
-  Dataset,
-  DatasetListResponse,
+import {
+  DatasetJobsResponseSchema,
+  DatasetListResponseSchema,
+  DatasetResearchNotesResponseSchema,
+  DatasetSchema,
+  DatasetScoresResponseSchema,
+  type Dataset,
+  type DatasetJobsResponse,
+  type DatasetListResponse,
+  type DatasetResearchNotesResponse,
+  type DatasetScoresResponse,
+  type IngestSession,
+  type UploadUrlRequest,
+  type UploadUrlResponse,
 } from "@/lib/schemas/upload";
-
-// ---------------------------------------------------------------------------
-// Auth
-// ---------------------------------------------------------------------------
-
-export function getAuthMe(): Promise<AuthMeResponse> {
-  return apiGet<AuthMeResponse>("/api/v1/auth/me");
-}
 
 // ---------------------------------------------------------------------------
 // Single-file upload
@@ -29,7 +28,7 @@ export function getAuthMe(): Promise<AuthMeResponse> {
  * `params.pdb_gcs_uri` when submitting a job.
  */
 export function getUploadUrl(req: UploadUrlRequest): Promise<UploadUrlResponse> {
-  return apiPost<UploadUrlResponse>("/api/v1/files/upload-url", req);
+  return apiPost<UploadUrlResponse>("/v1/phi/files/upload-url", req);
 }
 
 /**
@@ -59,24 +58,24 @@ export function createIngestSession(body: {
   file_type?: "pdb" | "fasta" | "csv";
   run_id?: string;
 }): Promise<IngestSession> {
-  return apiPost<IngestSession>("/api/v1/ingest_sessions", body);
+  return apiPost<IngestSession>("/v1/phi/ingest_sessions", body);
 }
 
 export function getIngestSessionUploadUrls(
   sessionId: string,
   files: string[]
 ): Promise<{ urls: Array<{ file: string; url: string }> }> {
-  return apiPost(`/api/v1/ingest_sessions/${sessionId}/upload_urls`, { files });
+  return apiPost(`/v1/phi/ingest_sessions/${sessionId}/upload_urls`, { files });
 }
 
 export function finalizeIngestSession(
   sessionId: string
 ): Promise<{ session_id: string; status: string }> {
-  return apiPost(`/api/v1/ingest_sessions/${sessionId}/finalize`, {});
+  return apiPost(`/v1/phi/ingest_sessions/${sessionId}/finalize`, {});
 }
 
 export function getIngestSession(sessionId: string): Promise<IngestSession> {
-  return apiGet<IngestSession>(`/api/v1/ingest_sessions/${sessionId}`);
+  return apiGet<IngestSession>(`/v1/phi/ingest_sessions/${sessionId}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -87,9 +86,55 @@ export function listDatasets(params?: {
   page?: number;
   page_size?: number;
 }): Promise<DatasetListResponse> {
-  return apiGet<DatasetListResponse>("/api/v1/datasets", params);
+  return apiGet<unknown>("/v1/phi/datasets/", params).then((data) =>
+    DatasetListResponseSchema.parse(data)
+  );
 }
 
 export function getDataset(datasetId: string): Promise<Dataset> {
-  return apiGet<Dataset>(`/api/v1/datasets/${datasetId}`);
+  return apiGet<unknown>(`/v1/phi/datasets/${encodeURIComponent(datasetId)}`).then(
+    (data) => DatasetSchema.parse(data)
+  );
+}
+
+export function getDatasetResearchNotes(
+  datasetId: string
+): Promise<DatasetResearchNotesResponse> {
+  return apiGet<unknown>(
+    `/v1/phi/datasets/${encodeURIComponent(datasetId)}/research-notes`
+  ).then((data) => DatasetResearchNotesResponseSchema.parse(data));
+}
+
+export function postDatasetResearchNotes(
+  datasetId: string,
+  body: { content: string }
+): Promise<DatasetResearchNotesResponse> {
+  return apiPost<unknown>(
+    `/v1/phi/datasets/${encodeURIComponent(datasetId)}/research-notes`,
+    body
+  ).then((data) => DatasetResearchNotesResponseSchema.parse(data));
+}
+
+/**
+ * List pipeline jobs run against a dataset (newest first).
+ * Optional status filter.
+ */
+export function getDatasetJobs(
+  datasetId: string,
+  opts?: { status?: string }
+): Promise<DatasetJobsResponse> {
+  return apiGet<unknown>(
+    `/v1/phi/datasets/${encodeURIComponent(datasetId)}/jobs`,
+    opts as Record<string, string | undefined>
+  ).then((data) => DatasetJobsResponseSchema.parse(data));
+}
+
+/**
+ * One-call: signed download URL for the most recent completed scores.csv for this dataset.
+ * 404 if no completed pipeline job exists for this dataset.
+ */
+export function getDatasetScores(datasetId: string): Promise<DatasetScoresResponse> {
+  return apiGet<unknown>(
+    `/v1/phi/datasets/${encodeURIComponent(datasetId)}/scores`
+  ).then((data) => DatasetScoresResponseSchema.parse(data));
 }

@@ -3,12 +3,12 @@ import { ProjectSchema, AssetGroupSchema, type Project } from "@/lib/schemas/pro
 import { z } from "zod";
 
 export async function createProject(name: string, description?: string): Promise<Project> {
-  const data = await apiPost<unknown>("/api/v1/projects", { name, description });
+  const data = await apiPost<unknown>("/v1/phi/projects", { name, description });
   return ProjectSchema.parse(data);
 }
 
 export async function listProjects(status = "active"): Promise<Project[]> {
-  const data = await apiGet<unknown>("/api/v1/projects", { status });
+  const data = await apiGet<unknown>("/v1/phi/projects", { status });
   // API may return array or wrapped object
   if (Array.isArray(data)) return z.array(ProjectSchema).parse(data);
   const wrapped = data as { projects?: unknown[]; items?: unknown[] };
@@ -17,12 +17,12 @@ export async function listProjects(status = "active"): Promise<Project[]> {
 }
 
 export async function getProject(projectId: string): Promise<Project> {
-  const data = await apiGet<unknown>(`/api/v1/projects/${projectId}`);
+  const data = await apiGet<unknown>(`/v1/phi/projects/${projectId}`);
   return ProjectSchema.parse(data);
 }
 
 export async function listAssetGroups(projectId: string) {
-  const data = await apiGet<unknown>(`/api/v1/projects/${projectId}/asset-groups`);
+  const data = await apiGet<unknown>(`/v1/phi/projects/${projectId}/asset-groups`);
   if (Array.isArray(data)) return z.array(AssetGroupSchema).parse(data);
   const wrapped = data as { asset_groups?: unknown[]; items?: unknown[] };
   return z.array(AssetGroupSchema).parse(wrapped.asset_groups ?? wrapped.items ?? []);

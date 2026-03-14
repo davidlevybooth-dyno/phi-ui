@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Upload, Cpu, SlidersHorizontal, Download } from "lucide-react";
+import { ArrowRight, Cpu, FlaskConical, SlidersHorizontal, Wand2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Show, UserButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
@@ -11,31 +11,32 @@ import { DynoLogo } from "@/components/shared/dyno-logo";
 import { ModelGrid } from "@/components/landing/model-grid";
 import { DocsTab } from "@/components/landing/docs-tab";
 import { SkillsTab } from "@/components/landing/skills-tab";
+import { FilterExplorer } from "@/components/landing/filter-explorer";
 
 const WORKFLOW_STEPS = [
   {
-    icon: Upload,
+    icon: Wand2,
     number: "01",
-    title: "Upload",
-    description: "Submit FASTA sequences or a PDB structure — via the agent, the web app, or the REST API.",
+    title: "Design",
+    description: "Generate binder candidates via the agent, the web app, or the REST API.",
   },
   {
     icon: Cpu,
     number: "02",
     title: "Score",
-    description: "Run scoring models - ESMFold, AlphaFold2, ProteinMPNN, etc. - on cloud GPUs.",
+    description: "Run scoring models on cloud GPUs to evaluate each design.",
   },
   {
     icon: SlidersHorizontal,
     number: "03",
-    title: "Filter",
-    description: "Apply metric thresholds — ipTM, pLDDT, ipSAE, MPNN score — to shortlist candidates.",
+    title: "Calibrate",
+    description: "Shortlist and rank candidates against experimental calibrated filters.",
   },
   {
-    icon: Download,
+    icon: FlaskConical,
     number: "04",
-    title: "Download",
-    description: "Export ranked binder sequences and structures, with reporting and lineage.",
+    title: "Advance",
+    description: "Move shortlisted designs to the synthesis queue, share with collaborators, or hand off to the wet lab.",
   },
 ];
 
@@ -79,17 +80,16 @@ export default function LandingPage() {
           {...fadeUp(0)}
           className="text-4xl font-semibold tracking-tight sm:text-5xl leading-tight mb-4"
         >
-          Score, filter, and rank
+          Calibrate and rank
           <br />
-          your protein binder designs.
+          your protein designs.
         </motion.h1>
 
         <motion.p
           {...fadeUp(0.12)}
           className="max-w-lg mx-auto text-muted-foreground text-base leading-relaxed mb-8"
         >
-          REST APIs and an agentic skills for scoring and filtering
-          AI-generated binder designs without managing infrastructure.
+          Skills for efficient agentic scoring, calibration and advancement of AI-generated protein designs without managing infrastructure.
         </motion.p>
 
         <motion.div
@@ -144,10 +144,11 @@ export default function LandingPage() {
       >
         {/* shadcn TabsList provides the pill-slider; we own the content */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="mb-8 mx-auto flex w-full max-w-sm">
+          <TabsList className="mb-8 mx-auto flex w-full max-w-md">
             <TabsTrigger value="skills" className="flex-1">Skills</TabsTrigger>
             <TabsTrigger value="docs" className="flex-1">Docs</TabsTrigger>
             <TabsTrigger value="models" className="flex-1">Models</TabsTrigger>
+            <TabsTrigger value="filters" className="flex-1">Filters</TabsTrigger>
           </TabsList>
         </Tabs>
 
@@ -162,6 +163,7 @@ export default function LandingPage() {
             {activeTab === "models" && <ModelGrid />}
             {activeTab === "docs" && <DocsTab />}
             {activeTab === "skills" && <SkillsTab />}
+            {activeTab === "filters" && <FilterExplorer />}
           </motion.div>
         </AnimatePresence>
       </motion.section>

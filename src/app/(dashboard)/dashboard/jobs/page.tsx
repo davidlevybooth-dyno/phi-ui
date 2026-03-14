@@ -32,11 +32,15 @@ import {
 } from "@/components/ui/table";
 import { JobStatusBadge } from "@/components/shared/job-status-badge";
 import { listJobs } from "@/lib/api/jobs";
+import { getJobTypeDisplayLabel, getDatasetIdFromJob } from "@/lib/schemas/job";
+import { useAuth } from "@/lib/auth-context";
+import type { Job } from "@/lib/schemas/job";
 
 const PAGE_SIZE = 20;
 
 const JOB_TYPES = [
   "all",
+  "design_pipeline",
   "alphafold",
   "esmfold",
   "proteinmpnn",
@@ -45,11 +49,15 @@ const JOB_TYPES = [
   "af2rank",
   "esm2",
   "rfdiffusion3",
+  "boltzgen",
 ] as const;
 
 const STATUS_FILTERS = ["all", "pending", "running", "completed", "failed", "cancelled"] as const;
 
 export default function JobsPage() {
+  const { user, loading: authLoading } = useAuth();
+  const authReady = !authLoading && !!user;
+
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -63,10 +71,11 @@ export default function JobsPage() {
         status: statusFilter === "all" ? undefined : statusFilter,
         job_type: typeFilter === "all" ? undefined : typeFilter,
       }),
+    enabled: authReady,
     refetchInterval: 15_000,
   });
 
-  const jobs = (data?.jobs ?? []) as Record<string, unknown>[];
+  const jobs: Job[] = data?.jobs ?? [];
   const totalPages = Math.ceil((data?.total_count ?? 0) / PAGE_SIZE);
 
   return (
@@ -112,7 +121,7 @@ export default function JobsPage() {
           <SelectContent>
             {JOB_TYPES.map((t) => (
               <SelectItem key={t} value={t} className="text-xs">
-                {t === "all" ? "All types" : t}
+                {t === "all" ? "All types" : getJobTypeDisplayLabel(t)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -126,6 +135,7 @@ export default function JobsPage() {
               <TableHead className="text-xs">Job ID</TableHead>
               <TableHead className="text-xs">Type</TableHead>
               <TableHead className="text-xs">Status</TableHead>
+              <TableHead className="text-xs">Dataset</TableHead>
               <TableHead className="text-xs">Created</TableHead>
               <TableHead className="text-xs">Duration</TableHead>
             </TableRow>
@@ -134,7 +144,7 @@ export default function JobsPage() {
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  {Array.from({ length: 5 }).map((_, j) => (
+                  {Array.from({ length: 6 }).map((_, j) => (
                     <TableCell key={j}>
                       <Skeleton className="h-4 w-20" />
                     </TableCell>
@@ -143,42 +153,50 @@ export default function JobsPage() {
               ))
             ) : jobs.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="py-12" aria-hidden />
+                <TableCell colSpan={6} className="py-12" aria-hidden />
               </TableRow>
             ) : (
               jobs.map((job) => {
-                const jobId = (job.job_id ?? job.id ?? "") as string;
-                const createdAt = job.created_at as string | undefined;
-                const completedAt = job.completed_at as string | undefined;
-                const startedAt = job.started_at as string | undefined;
+                const datasetId = getDatasetIdFromJob(job);
                 const durationSec =
-                  completedAt && startedAt
+                  job.completed_at && job.started_at
                     ? Math.round(
-                        (new Date(completedAt).getTime() - new Date(startedAt).getTime()) / 1000
+                        (new Date(job.completed_at).getTime() -
+                          new Date(job.started_at).getTime()) / 1000
                       )
                     : null;
 
                 return (
-                  <TableRow key={jobId} className="cursor-pointer hover:bg-muted/30">
+                  <TableRow key={job.job_id} className="cursor-pointer hover:bg-muted/30">
                     <TableCell className="font-mono text-xs">
-                      <Link href={`/dashboard/jobs/${jobId}`} className="hover:underline">
-                        {jobId.slice(0, 8)}…
+                      <Link href={`/dashboard/jobs/${job.job_id}`} className="hover:underline">
+                        {job.job_id.slice(0, 8)}…
                       </Link>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="text-xs font-mono font-normal">
-                        {(job.job_type as string) ?? "—"}
+                      <Badge variant="outline" className="text-xs font-normal">
+                        {getJobTypeDisplayLabel(job.job_type)}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <JobStatusBadge status={job.status as string} />
+                      <JobStatusBadge status={job.status} />
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      {datasetId ? (
+                        <Link
+                          href={`/dashboard/datasets/${datasetId}`}
+                          className="text-primary hover:underline font-mono"
+                        >
+                          {datasetId.slice(0, 8)}…
+                        </Link>
+                      ) : (
+                        "—"
+                      )}
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
-                      {createdAt && (
-                        <span title={format(new Date(createdAt), "PPpp")}>
-                          {formatDistanceToNow(new Date(createdAt), { addSuffix: true })}
-                        </span>
-                      )}
+                      <span title={format(new Date(job.created_at), "PPpp")}>
+                        {formatDistanceToNow(new Date(job.created_at), { addSuffix: true })}
+                      </span>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {durationSec != null ? (

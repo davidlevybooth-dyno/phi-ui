@@ -22,15 +22,15 @@ export interface PlanExecuteRequest {
 }
 
 export async function planWorkflow(request: PlanWorkflowRequest) {
-  return apiPost<Record<string, unknown>>("/api/v1/workflows/plan", request);
+  return apiPost<Record<string, unknown>>("/v1/phi/workflows/plan", request);
 }
 
 export async function planAndExecute(request: PlanExecuteRequest) {
-  return apiPost<Record<string, unknown>>("/api/v1/workflows/plan/execute", request);
+  return apiPost<Record<string, unknown>>("/v1/phi/workflows/plan/execute", request);
 }
 
 export async function executeWorkflow(workflowId: string, inputs?: Record<string, unknown>) {
-  return apiPost<Record<string, unknown>>(`/api/v1/workflows/${workflowId}/execute`, {
+  return apiPost<Record<string, unknown>>(`/v1/phi/workflows/${workflowId}/execute`, {
     inputs,
   });
 }
@@ -40,7 +40,7 @@ export async function getWorkflowRunStatus(
   runId: string
 ): Promise<WorkflowRunStatus> {
   const data = await apiGet<unknown>(
-    `/api/v1/workflows/${workflowId}/runs/${runId}/status`
+    `/v1/phi/workflows/${workflowId}/runs/${runId}/status`
   );
   return WorkflowRunStatusSchema.parse(data);
 }
@@ -51,11 +51,11 @@ export async function listWorkflows(opts?: {
   offset?: number;
   include_runs?: boolean;
 }) {
-  return apiGet<Record<string, unknown>>("/api/v1/workflows/", opts as Record<string, string | number | boolean | undefined>);
+  return apiGet<Record<string, unknown>>("/v1/phi/workflows/", opts as Record<string, string | number | boolean | undefined>);
 }
 
 export async function getWorkflow(workflowId: string, includeRuns = true) {
-  return apiGet<Record<string, unknown>>(`/api/v1/workflows/${workflowId}`, {
+  return apiGet<Record<string, unknown>>(`/v1/phi/workflows/${workflowId}`, {
     include_runs: includeRuns,
   });
 }

@@ -75,7 +75,7 @@ export DYNO_API_KEY="YOUR_API_KEY"
 # Verify: phi login
 
 # Example curl
-curl -X POST ${process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://design.dynotx.com"}/api/v1/jobs/ \\
+curl -X POST ${process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.dyno-agents.app"}/v1/phi/jobs \\
   -H "x-api-key: YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{ "job_type": "esmfold", "params": { ... } }'`}</code>
