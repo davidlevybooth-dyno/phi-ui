@@ -98,11 +98,3 @@ npm run build    # Production build
 npm run lint     # Run ESLint
 npm run test     # Run tests (once configured)
 ```
-
----
-
-## Key External Resources
-
-- Dyno Phi API documentation: _TBD — will be provided in follow-up sessions_
-- Design target: `design.dynotx.com`
-- Related announcement: NVIDIA GTC / Dyno Psi-1 open-weights model launch

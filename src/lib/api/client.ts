@@ -40,7 +40,18 @@ async function handleResponse<T>(res: Response): Promise<T> {
     } catch {
       body = await res.text();
     }
-    throw new ApiError(res.status, `API ${res.status}: ${res.statusText}`, body);
+    // Prefer the backend's own error message (FastAPI uses "detail", others use "message").
+    const backendMessage =
+      body !== null &&
+      typeof body === "object" &&
+      ("detail" in body || "message" in body)
+        ? String((body as Record<string, unknown>).detail ?? (body as Record<string, unknown>).message)
+        : null;
+    throw new ApiError(
+      res.status,
+      backendMessage ?? `API ${res.status}: ${res.statusText}`,
+      body
+    );
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;

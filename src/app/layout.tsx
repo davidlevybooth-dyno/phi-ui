@@ -21,7 +21,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Dyno Phi — Protein Design Platform",
   description:
-    "Agentic scoring and filtering for protein binder design. Powered by Dyno Psi-1.",
+    "Agentic scoring and filtering for protein binder design.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
