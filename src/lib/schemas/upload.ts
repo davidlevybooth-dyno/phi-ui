@@ -69,7 +69,7 @@ export const DatasetFileSchema = z.object({
   /** Removed from backend response as of 2026-03-13 — internal bucket path, never a valid download URL. */
   gcs_uri: z.string().optional(),
   size_bytes: z.number().int().optional(),
-  checksum: z.string().optional(),
+  checksum: z.string().nullable().optional(),
 });
 
 export const DatasetSchema = z.object({
