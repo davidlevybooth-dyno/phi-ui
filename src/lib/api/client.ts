@@ -3,12 +3,13 @@ import { getApiCredentials } from "./credentials";
 const FETCH_TIMEOUT_MS = 30_000;
 
 // Single source of truth for the API base URL.
-// Override for local API testing: set NEXT_PUBLIC_API_BASE_URL or NEXT_PUBLIC_DYNO_API_BASE_URL
-// (e.g. NEXT_PUBLIC_API_BASE_URL=http://localhost:8000). Next.js only exposes NEXT_PUBLIC_* to the client.
-const BASE_URL =
+// Dev:  set NEXT_PUBLIC_API_BASE_URL in .env.local (staging URL, no trailing slash)
+// Prod: set NEXT_PUBLIC_API_BASE_URL in Vercel env vars (prod URL, no trailing slash)
+const BASE_URL = (
   process.env.NEXT_PUBLIC_API_BASE_URL ??
   process.env.NEXT_PUBLIC_DYNO_API_BASE_URL ??
-  "https://api.dyno-agents.app";
+  "https://api.dyno-agents.app"
+).replace(/\/$/, ""); // strip any accidental trailing slash
 
 export class ApiError extends Error {
   constructor(

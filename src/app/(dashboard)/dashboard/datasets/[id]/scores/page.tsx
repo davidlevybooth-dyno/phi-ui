@@ -165,7 +165,7 @@ export default function DatasetScoresPage({
   const [filterValues, setFilterValues] = useState<Record<string, number>>(
     Object.fromEntries(METRIC_FILTERS.map((f) => [f.key, defaultSliderValue(f)]))
   );
-  const [showFilteredOut, setShowFilteredOut] = useState(false);
+  const [viewMode, setViewMode] = useState<"all" | "pass">("all");
   const [page, setPage] = useState(1);
 
   const authReady = !authLoading && !!user;
@@ -216,7 +216,7 @@ export default function DatasetScoresPage({
     });
 
   const passedCount = designsWithPass.filter((d) => d.passesFilters).length;
-  const displayedDesigns = showFilteredOut ? designsWithPass : designsWithPass.filter((d) => d.passesFilters);
+  const displayedDesigns = viewMode === "pass" ? designsWithPass.filter((d) => d.passesFilters) : designsWithPass;
 
   const totalPages = Math.max(1, Math.ceil(totalCount / DEFAULT_SCORES_PAGE_SIZE));
   const pageStart = totalCount === 0 ? 0 : (page - 1) * DEFAULT_SCORES_PAGE_SIZE + 1;
@@ -247,6 +247,24 @@ export default function DatasetScoresPage({
 
       <div className="flex gap-4">
         <Card className="p-4 space-y-4 w-56 shrink-0 self-start">
+            {/* View toggle */}
+            <div className="flex rounded-md overflow-hidden border border-border text-xs font-medium">
+              {(["all", "pass"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => setViewMode(mode)}
+                  className={cn(
+                    "flex-1 py-1.5 capitalize transition-colors",
+                    viewMode === mode
+                      ? "bg-foreground text-background"
+                      : "bg-muted text-muted-foreground hover:bg-muted/70"
+                  )}
+                >
+                  {mode}
+                </button>
+              ))}
+            </div>
+
             <div className="flex items-center gap-1.5">
               <SlidersHorizontal className="size-3.5" />
               <span className="text-xs font-medium">Thresholds</span>
@@ -289,15 +307,6 @@ export default function DatasetScoresPage({
                 {passedCount} / {designs.length}
               </span>
             </div>
-            <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={showFilteredOut}
-                onChange={(e) => setShowFilteredOut(e.target.checked)}
-                className="rounded border-border"
-              />
-              Show filtered out
-            </label>
           </Card>
 
         <div className="flex-1 overflow-hidden">
@@ -329,7 +338,7 @@ export default function DatasetScoresPage({
                 <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 border-b text-xs text-muted-foreground">
                   <span>
                     Showing {pageStart}–{pageEnd} of {totalCount}
-                    {!showFilteredOut && passedCount < designs.length && (
+                    {viewMode === "all" && passedCount < designs.length && (
                       <> · {designs.length - passedCount} filtered out</>
                     )}
                   </span>

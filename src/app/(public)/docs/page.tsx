@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Terminal } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { DocsSection } from "@/components/landing/docs-section";
+import { DocsTab } from "@/components/landing/docs-tab";
 
 export default function DocsPage() {
   return (
@@ -15,8 +15,16 @@ export default function DocsPage() {
             Back
           </Link>
         </Button>
-        <h1 className="text-xl font-semibold tracking-tight mb-6">Documentation</h1>
-        <DocsSection />
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-xl font-semibold tracking-tight">Documentation</h1>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/cli">
+              <Terminal className="mr-1.5 size-3.5" />
+              CLI Reference
+            </Link>
+          </Button>
+        </div>
+        <DocsTab />
       </div>
     </div>
   );
