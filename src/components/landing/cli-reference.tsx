@@ -1,5 +1,6 @@
 "use client";
 
+import { Github } from "lucide-react";
 import { motion } from "framer-motion";
 import { CodeHighlight } from "@/components/ui/code-highlight";
 
@@ -81,6 +82,210 @@ function Hr() {
 }
 
 // ---------------------------------------------------------------------------
+// Copyable plain-text version — for pasting into AI agents as context
+// ---------------------------------------------------------------------------
+
+export const CLI_COPY_TEXT = `# Phi CLI Reference
+Version: 0.1.0 · Package: dyno-phi · Requires: Python ≥ 3.11
+
+## Installation & authentication
+\`\`\`
+pip install dyno-phi
+# or: uv tool install dyno-phi
+export DYNO_API_KEY=ak_...
+phi login
+\`\`\`
+
+## Global flags
+--poll-interval S   (default 5) Seconds between status-poll requests
+--version           Print version and exit
+--help              Show help for any command
+
+## State caching
+phi caches the active dataset ID and job ID in .phi-state.json.
+\`\`\`
+phi use <dataset-id>         # set active dataset
+phi filter --preset default  # uses cached dataset
+phi scores                   # uses cached job
+phi download --out ./results # uses cached job
+\`\`\`
+
+## Command index
+phi login            Verify API key and print identity
+phi fetch            Download structure from RCSB PDB or AlphaFold DB
+phi upload           Upload PDB/CIF/FASTA files → create dataset
+phi use              Set active dataset ID
+phi datasets         List your datasets
+phi dataset          Show details for a single dataset
+phi ingest-session   Check status of an ingest session
+phi design           Backbone generation — binder design, de novo, motif scaffolding (alias: rfdiffusion3)
+phi boltzgen         All-atom generative design from a YAML spec
+phi folding          Fast single-sequence structure prediction — ESMFold (alias: esmfold)
+phi complex_folding  Monomer or multimer structure prediction — AlphaFold2 (alias: alphafold)
+phi openfold3        Biomolecular complex prediction — proteins, DNA, RNA, ligands
+phi inverse_folding  Sequence design via inverse folding — ProteinMPNN (alias: proteinmpnn)
+phi esm2             Language model log-likelihood scoring and perplexity
+phi boltz            Biomolecular complex prediction — proteins, DNA, RNA (Boltz-1)
+phi filter           Full filter pipeline: inverse folding → folding → complex folding → score
+phi status           Get job status
+phi jobs             List recent jobs
+phi logs             Print log stream URL for a job
+phi cancel           Cancel a running job
+phi scores           Display scoring metrics table for a completed filter job
+phi download         Download output files for a completed job
+phi research         Run a biological research query with citations
+phi notes            View accumulated research notes for a dataset
+
+## Detailed reference
+
+### phi fetch
+\`\`\`
+phi fetch (--pdb ID | --uniprot ID) [--chain C] [--residues START-END]
+          [--trim-low-confidence PLDDT] [--out FILE] [--upload] [--name NAME]
+\`\`\`
+Examples:
+  phi fetch --pdb 4ZQK --chain A --residues 56-290 --out target.pdb
+  phi fetch --uniprot Q9NZQ7 --trim-low-confidence 70 --upload
+
+### phi upload
+\`\`\`
+phi upload [FILE ...] [--dir DIR] [--file-type TYPE] [--wait|--no-wait]
+\`\`\`
+  phi upload --dir ./designs/ --file-type pdb
+
+### phi design (rfdiffusion3)
+\`\`\`
+phi design [--target-pdb FILE | --target-pdb-gcs URI | --length N | --motif-pdb FILE]
+           [--hotspots A45,A67] [--num-designs N] [--steps N]
+           [--symmetry C3] [--wait] [--out DIR]
+\`\`\`
+  phi design --target-pdb target.pdb --hotspots A45,A67 --num-designs 50
+  phi design --length 80 --num-designs 20
+
+### phi boltzgen
+\`\`\`
+phi boltzgen (--yaml FILE | --yaml-gcs URI) [--protocol PROTOCOL]
+             [--num-designs N] [--budget N] [--wait] [--out DIR]
+\`\`\`
+  phi boltzgen --yaml design.yaml --protocol protein-anything --num-designs 10000
+
+### phi folding (esmfold)
+\`\`\`
+phi folding (--fasta FILE | --fasta-str FASTA | --dataset-id ID)
+            [--recycles N] [--wait] [--out DIR]
+\`\`\`
+  phi folding --fasta sequences.fasta --wait
+
+### phi complex_folding (alphafold)
+\`\`\`
+phi complex_folding (--fasta FILE | --fasta-str FASTA | --dataset-id ID)
+                    [--models 1,2,3] [--recycles N] [--amber] [--wait] [--out DIR]
+\`\`\`
+Separate chains with : for multimer (e.g. >binder:target)
+  phi complex_folding --fasta binder_target.fasta --wait
+
+### phi openfold3
+\`\`\`
+phi openfold3 (--fasta FILE | --fasta-str FASTA | --dataset-id ID)
+              [--dna SEQUENCE] [--rna SEQUENCE]
+              [--output-format pdb|mmcif] [--recycles N] [--wait] [--out DIR]
+\`\`\`
+  phi openfold3 --fasta protein.fasta --dna "AGGAACACGTGACCC" --wait --out ./of3_results/
+
+### phi inverse_folding (proteinmpnn)
+\`\`\`
+phi inverse_folding (--pdb FILE | --pdb-gcs URI | --dataset-id ID)
+                    [--num-sequences N] [--temperature T] [--wait] [--out DIR]
+\`\`\`
+
+### phi esm2
+\`\`\`
+phi esm2 (--fasta FILE | --fasta-str FASTA | --dataset-id ID) [--wait] [--out DIR]
+\`\`\`
+
+### phi boltz
+\`\`\`
+phi boltz (--fasta FILE | --yaml FILE | --dataset-id ID) [--wait] [--out DIR]
+\`\`\`
+
+### phi filter
+\`\`\`
+phi filter [--dataset-id ID] [--preset default|relaxed]
+           [--plddt-threshold F] [--ptm-threshold F]
+           [--iptm-threshold F] [--ipae-threshold F] [--rmsd-threshold F]
+           [--wait] [--out DIR]
+\`\`\`
+  phi filter --preset default --wait --out ./results/
+
+### phi scores
+\`\`\`
+phi scores [JOB_ID] [--top N] [--out FILE] [--json]
+\`\`\`
+
+### phi download
+\`\`\`
+phi download [JOB_ID] [--out DIR] [--all]
+\`\`\`
+
+### phi research
+\`\`\`
+phi research --question QUESTION [--target TARGET] [--databases LIST]
+             [--structures] [--context-file FILE] [--dataset-id ID]
+\`\`\`
+  phi research --question "What are PD-L1 binding hotspots?" --target PD-L1 --structures
+
+## Filter presets
+Metric       default    relaxed    Description
+pLDDT        ≥ 0.80     ≥ 0.80     ESMFold per-residue confidence (0–1)
+pTM          ≥ 0.55     ≥ 0.45     Global TM-score proxy from ESMFold
+ipTM         ≥ 0.50     ≥ 0.50     Interface pTM from AF2 multimer (0–1)
+iPAE         ≤ 10.85 Å  ≤ 12.4 Å  AF2 interface predicted aligned error
+RMSD         ≤ 3.5 Å    ≤ 4.5 Å   Backbone RMSD vs. reference design
+
+Override any threshold alongside a preset:
+  phi filter --preset default --plddt-threshold 0.75 --iptm-threshold 0.45
+
+## Workflows
+
+### Full binder design pipeline
+\`\`\`
+phi fetch --pdb 4ZQK --chain A --residues 56-290 --out target.pdb
+phi design --target-pdb target.pdb --hotspots A45,A67 --num-designs 50
+phi upload --dir ./rfdiffusion_outputs/ --file-type pdb
+phi filter --preset default --wait --out ./results/
+phi scores --top 30
+\`\`\`
+
+### BoltzGen binder design
+\`\`\`
+phi fetch --uniprot Q9NZQ7 --trim-low-confidence 70 --upload
+phi boltzgen --yaml design.yaml --protocol protein-anything --num-designs 10000
+phi download --out ./boltzgen_results/
+\`\`\`
+
+### OpenFold3 protein–DNA complex
+\`\`\`
+phi fetch --pdb 5GNJ --chain A --out tf.pdb
+phi openfold3 --fasta tf_sequence.fasta --dna "AGGAACACGTGACCC" --wait --out ./of3_results/
+\`\`\`
+
+### Validate a batch of sequences
+\`\`\`
+phi upload sequences.fasta
+phi folding --dataset-id <id> --wait
+phi esm2 --dataset-id <id> --wait
+phi download --out ./validation/
+\`\`\`
+
+### Research-guided campaign
+\`\`\`
+phi research --question "What are the binding hotspots of PD-L1?" \\
+  --target PD-L1 --structures --dataset-id <id>
+phi notes <dataset-id>
+\`\`\`
+`;
+
+// ---------------------------------------------------------------------------
 // CLI Reference — main component
 // ---------------------------------------------------------------------------
 
@@ -106,6 +311,16 @@ export function CliReference() {
           <span><strong>Package:</strong> <Code>dyno-phi</Code></span>
           <span>·</span>
           <span><strong>Requires:</strong> Python ≥ 3.11</span>
+          <span>·</span>
+          <a
+            href="https://github.com/dynotx/phi-cli"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+          >
+            <Github className="size-3" />
+            <span>GitHub</span>
+          </a>
         </div>
       </div>
 

@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Download, Terminal } from "lucide-react";
+import { Download, Terminal, Github } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CodeHighlight } from "@/components/ui/code-highlight";
+import { CopyButton } from "@/components/ui/copy-button";
 import { cn } from "@/lib/utils";
 import { CLAUDE_SKILLS, type ClaudeSkill } from "@/lib/models-data";
 
@@ -62,6 +63,49 @@ const OTHER_COMMANDS = [
   { cmd: "phi jobs", desc: "list, poll, and cancel running jobs" },
 ];
 
+export const SKILLS_COPY_TEXT = `# Dyno Phi — Skills & CLI Setup
+
+## What is Phi?
+One skill file gives your coding agent (Claude Code, Cursor, Windsurf, or any agent
+that reads context files) access to all Dyno Phi protein design capabilities through
+the phi CLI. Single commands wrap complex multi-step workflows, reducing token usage
+up to 98% on agentic protein design tasks.
+
+## Capabilities
+- Structure prediction — ESMFold (fast screen) and AlphaFold2 (complex validation)
+- Sequence design — ProteinMPNN inverse folding with temperature control
+- Language model scoring — ESM-2 log-likelihood and perplexity
+- Biomolecular complex prediction — Boltz-1/2 for proteins, DNA, RNA
+- Biological research — PubMed, UniProt, PDB, and STRING queries with citations
+- Job management — submit, poll, cancel, download results
+
+## Setup
+
+### Step 1 — Get an API key
+${SETUP_API_KEY}
+
+### Step 2 — Add the skill to your agent (Claude Code plugin)
+${SKILL_PLUGIN}
+
+### Step 2 — Add the skill manually
+${SKILL_MANUAL}
+
+### Install the CLI
+${INSTALL_UV}
+
+## Core workflow
+${EXAMPLE_RESEARCH}
+
+${EXAMPLE_DESIGN}
+
+${EXAMPLE_FILTER}
+
+## More commands
+${OTHER_COMMANDS.map(({ cmd, desc }) => `${cmd}  — ${desc}`).join("\n")}
+
+Full CLI reference: https://design.dynotx.com/docs
+`;
+
 type InstallMethod = "uv" | "pip";
 type SkillMethod = "plugin" | "manual";
 
@@ -87,14 +131,17 @@ export function SkillsTab() {
       className="space-y-3 max-w-3xl"
     >
       {/* Header */}
-      <div>
-        <h2 className="text-lg font-semibold mb-0.5">Phi Skills</h2>
-        <p className="text-sm text-muted-foreground max-w-2xl">
-          One skill file gives your coding agent (e.g. Claude Code, Cursor) access to all Dyno Phi
-          protein design capabilities through the{" "}
-          <code className="font-mono text-xs bg-muted px-1 rounded">phi</code>{" "}
-          CLI. Single commands wrap complex multi-step workflows, reducing token usage by ~90% on agentic design tasks.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-semibold mb-0.5">Phi Skills</h2>
+          <p className="text-sm text-muted-foreground max-w-2xl">
+            One skill file gives your coding agent (e.g. Claude Code, Cursor) access to all Dyno Phi
+            protein design capabilities through the{" "}
+            <code className="font-mono text-xs bg-muted px-1 rounded">phi</code>{" "}
+            CLI. Single commands wrap complex multi-step workflows, reducing token usage up to 98% on agentic design tasks.
+          </p>
+        </div>
+        <CopyButton text={SKILLS_COPY_TEXT} />
       </div>
 
       {/* Single skill card */}
@@ -128,15 +175,26 @@ export function SkillsTab() {
               </ul>
             </div>
           </div>
-          <Button
-            size="sm"
-            variant="outline"
-            className="gap-1.5 shrink-0"
-            onClick={() => downloadSkill(skill)}
-          >
-            <Download className="size-3.5" />
-            Download
-          </Button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <a
+              href="https://github.com/dynotx/phi-cli"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Button size="sm" variant="outline" className="size-8 p-0" title="View on GitHub">
+                <Github className="size-3.5" />
+              </Button>
+            </a>
+            <Button
+              size="sm"
+              variant="outline"
+              className="size-8 p-0"
+              onClick={() => downloadSkill(skill)}
+              title="Download skill file"
+            >
+              <Download className="size-3.5" />
+            </Button>
+          </div>
         </div>
       </Card>
 

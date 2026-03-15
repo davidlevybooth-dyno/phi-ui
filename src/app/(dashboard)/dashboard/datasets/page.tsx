@@ -15,6 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { listDatasets } from "@/lib/api/upload";
+import { ApiError } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth-context";
 import type { DatasetListResponse } from "@/lib/schemas/upload";
 
@@ -31,6 +32,7 @@ export default function DatasetsPage() {
   const list = (data as DatasetListResponse | undefined);
   const datasets = list?.datasets ?? [];
   const total = list?.total_count ?? list?.total ?? datasets.length;
+  const is401 = error instanceof ApiError && error.status === 401;
   const errorMessage =
     error instanceof Error ? error.message : "Failed to load datasets.";
 
@@ -51,8 +53,20 @@ export default function DatasetsPage() {
         </div>
       ) : isError ? (
         <Card className="flex flex-col items-center justify-center py-16 text-center">
-          <p className="text-sm text-destructive font-medium">Failed to load datasets</p>
-          <p className="text-xs text-muted-foreground mt-1 max-w-md">{errorMessage}</p>
+          {is401 ? (
+            <>
+              <p className="text-sm font-medium">API authentication not configured</p>
+              <p className="text-xs text-muted-foreground mt-1 max-w-sm">
+                The API server returned 401. Your administrator needs to enable Clerk JWT
+                validation on the backend before browser sessions can access data.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-destructive font-medium">Failed to load datasets</p>
+              <p className="text-xs text-muted-foreground mt-1 max-w-md">{errorMessage}</p>
+            </>
+          )}
         </Card>
       ) : datasets.length === 0 ? (
         <Card className="flex flex-col items-center justify-center py-16">

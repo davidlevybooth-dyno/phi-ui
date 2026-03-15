@@ -45,8 +45,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setUserId(clerkUser.id);
 
-    // Store a fresh Clerk session token and sync org/user from backend when
-    // GET /auth/me is available (so X-Organization-ID / X-User-ID match the API).
+    // Refresh the Clerk session JWT and sync org/user identity from the backend.
+    //
+    // BACKEND REQUIREMENT: the API server must verify Clerk JWTs sent as x-api-key
+    // against its JWKS endpoint. If the backend reports a signing key mismatch
+    // (401 "Unable to find a signing key in JWKS"), it means the backend's cached
+    // JWKS is stale. Fix: set CLERK_JWKS_URL on the backend to:
+    //   https://clerk.design.dynotx.com/.well-known/jwks.json
+    // or force a JWKS cache refresh. This is a backend configuration issue.
+    //
+    // On 401 we stop the polling interval to avoid flooding backend logs.
+    // On 404 (endpoint not yet deployed) we keep refreshing the JWT only.
+    let stopped = false;
+
     const refresh = async () => {
       const token = await getToken();
       setApiKey(token);
@@ -54,13 +65,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const me = await getAuthMe();
         if (me.org_id) setOrgId(me.org_id);
         setUserId(me.user_id);
-      } catch {
-        // Backend may not have /auth/me or Clerk; keep Clerk userId and defaults.
+      } catch (err) {
+        const status = (err as { status?: number })?.status;
+        if (status === 401) {
+          // JWKS mismatch — backend config issue. Stop polling to avoid log spam.
+          // The JWT is still stored so other endpoints (with fallback auth) work.
+          stopped = true;
+        }
+        // 404 = endpoint not yet deployed; keep refreshing JWT silently.
       }
     };
 
     refresh();
-    const interval = setInterval(refresh, 55_000);
+    const interval = setInterval(() => {
+      if (!stopped) refresh();
+    }, 55_000);
     return () => clearInterval(interval);
   }, [isSignedIn, clerkUser, getToken, setApiKey, setUserId, setOrgId]);
 

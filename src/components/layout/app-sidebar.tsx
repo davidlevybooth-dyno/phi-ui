@@ -29,7 +29,7 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border px-4 py-3">
-        <Link href="/dashboard" className="flex items-center gap-2">
+        <Link href="/" className="flex items-center gap-2">
           <DynoLogo className="size-7 shrink-0" />
           <span className="font-semibold text-sm truncate">Dyno Phi</span>
         </Link>

@@ -103,6 +103,37 @@ const FAQ = [
   },
 ];
 
+// ---------------------------------------------------------------------------
+// Copyable plain-text version — for pasting into AI agents as context
+// ---------------------------------------------------------------------------
+
+export const OVERVIEW_COPY_TEXT = [
+  "# Dyno Phi — Scoring Pipeline & Metric Reference",
+  "",
+  "## Default Scoring Pipeline",
+  "",
+  ...PIPELINE_STAGES.map(
+    (s) => `### ${s.step}. ${s.name}\nTool: ${s.tool}\nMetrics: ${s.metric}\n${s.description}`
+  ).join("\n\n").split("\n"),
+  "",
+  "## Metric Reference",
+  "",
+  ...METRIC_CATEGORIES.flatMap((cat) => [
+    `### ${cat.category}`,
+    ...cat.metrics.map((m) => `- ${m.name}: ${m.interpretation}`),
+    "",
+  ]),
+  "## Recommended Filter Thresholds",
+  "",
+  ...THRESHOLDS.map(
+    (t) => `- ${t.metric}: recommended ${t.recommended}, high quality ${t.high}`
+  ),
+  "",
+  "## FAQ",
+  "",
+  ...FAQ.flatMap((item) => [`Q: ${item.q}`, `A: ${item.a}`, ""]),
+].join("\n");
+
 export function DocsTab() {
   return (
     <motion.div

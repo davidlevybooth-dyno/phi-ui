@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/table";
 import { JobStatusBadge } from "@/components/shared/job-status-badge";
 import { listJobs } from "@/lib/api/jobs";
+import { ApiError } from "@/lib/api/client";
 import { getJobTypeDisplayLabel, getDatasetIdFromJob } from "@/lib/schemas/job";
 import { useAuth } from "@/lib/auth-context";
 import type { Job } from "@/lib/schemas/job";
@@ -62,7 +63,7 @@ export default function JobsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
 
-  const { data, isLoading, refetch, isFetching } = useQuery({
+  const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ["jobs", page, statusFilter, typeFilter],
     queryFn: () =>
       listJobs({
@@ -77,6 +78,7 @@ export default function JobsPage() {
 
   const jobs: Job[] = data?.jobs ?? [];
   const totalPages = Math.ceil((data?.total_count ?? 0) / PAGE_SIZE);
+  const is401 = error instanceof ApiError && error.status === 401;
 
   return (
     <div className="space-y-4 max-w-5xl">
@@ -151,9 +153,29 @@ export default function JobsPage() {
                   ))}
                 </TableRow>
               ))
+            ) : isError ? (
+              <TableRow>
+                <TableCell colSpan={6} className="py-12 text-center">
+                  {is401 ? (
+                    <>
+                      <p className="text-sm font-medium">API authentication not configured</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        The API server returned 401. Your administrator needs to enable Clerk JWT
+                        validation on the backend.
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-sm text-destructive">
+                      {error instanceof Error ? error.message : "Failed to load jobs."}
+                    </p>
+                  )}
+                </TableCell>
+              </TableRow>
             ) : jobs.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="py-12" aria-hidden />
+                <TableCell colSpan={6} className="py-12 text-center text-xs text-muted-foreground">
+                  No jobs yet
+                </TableCell>
               </TableRow>
             ) : (
               jobs.map((job) => {

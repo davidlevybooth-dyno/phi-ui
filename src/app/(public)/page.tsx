@@ -24,7 +24,7 @@ const WORKFLOW_STEPS = [
     icon: Cpu,
     number: "02",
     title: "Score",
-    description: "Run scoring models on cloud GPUs to evaluate each design.",
+    description: "Run scoring models on Dyno cloud GPUs to evaluate each design.",
   },
   {
     icon: SlidersHorizontal,
@@ -89,7 +89,7 @@ export default function LandingPage() {
           {...fadeUp(0.12)}
           className="max-w-lg mx-auto text-muted-foreground text-base leading-relaxed mb-8"
         >
-          Skills for efficient agentic scoring, calibration and advancement of AI-generated protein designs without managing infrastructure.
+          Skills for agentic calibration and advancement of AI-generated protein designs. Without managing infrastructure.
         </motion.p>
 
         <motion.div
