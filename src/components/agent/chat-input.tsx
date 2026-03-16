@@ -145,7 +145,7 @@ export function ChatInput({
             <Lock className="h-3 w-3 shrink-0" />
             <span>
               You&apos;ve reached the limit for <strong>{mode}</strong> mode in this session.{" "}
-              <a href="/login" className="underline text-foreground hover:text-foreground/80">
+              <a href="/waitlist" className="underline text-foreground hover:text-foreground/80">
                 Sign in
               </a>{" "}
               for unlimited access.

@@ -487,7 +487,7 @@ export function PlanMessage({ query, initialPlanText, onReportStarted, onReportR
             <div className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs dark:border-blue-800 dark:bg-blue-950/20">
               <Info className="size-3 shrink-0 text-blue-400" />
               <span className="text-blue-700 dark:text-blue-200">
-                <Link href="/login" className="font-medium underline underline-offset-2 hover:no-underline">Sign in</Link>
+                <Link href="/waitlist" className="font-medium underline underline-offset-2 hover:no-underline">Sign in</Link>
                 {" "}to run and save this workflow.
               </span>
             </div>

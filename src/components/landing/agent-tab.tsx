@@ -176,7 +176,7 @@ export function AgentTab() {
                 <Info className="size-3 shrink-0 text-blue-400 dark:text-blue-400" />
                 <span className="text-blue-700 dark:text-blue-200">
                   Limit: 5 messages per session.{" "}
-                  <Link href="/login" className="font-medium underline underline-offset-2 hover:no-underline">
+                  <Link href="/waitlist" className="font-medium underline underline-offset-2 hover:no-underline">
                     Sign in
                   </Link>
                   {" "}for unlimited access and session history.

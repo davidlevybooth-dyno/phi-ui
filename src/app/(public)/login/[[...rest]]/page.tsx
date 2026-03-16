@@ -84,7 +84,11 @@ export default function LoginPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.45, ease: "easeOut" }}
           >
-            <SignIn forceRedirectUrl="/dashboard" signUpForceRedirectUrl="/dashboard" />
+            <SignIn
+                forceRedirectUrl="/dashboard"
+                signUpForceRedirectUrl="/dashboard"
+                waitlistUrl="/waitlist"
+              />
           </motion.div>
         )}
       </AnimatePresence>
