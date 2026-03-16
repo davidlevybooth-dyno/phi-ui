@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AgentTab } from "@/components/landing/agent-tab";
 
 export function PublicAgentShell() {
@@ -22,14 +21,10 @@ export function PublicAgentShell() {
             <span className="text-foreground font-medium">Agent</span>
           </div>
           <div className="flex items-center gap-3">
-            <Select value="phi-3.0-lite" onValueChange={() => {}}>
-              <SelectTrigger className="w-36 h-7 text-xs border-0 shadow-none focus:ring-0 px-1">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="phi-3.0-lite">phi-3.0-lite</SelectItem>
-              </SelectContent>
-            </Select>
+            <span className="inline-flex items-center gap-1 rounded-md px-1 h-7 text-xs text-muted-foreground cursor-default select-none">
+              phi-lite
+              <ChevronDown className="h-3 w-3 opacity-50" />
+            </span>
             <Button asChild variant="ghost" size="sm">
               <Link href="/login">Sign in</Link>
             </Button>

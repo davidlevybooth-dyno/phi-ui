@@ -66,7 +66,10 @@ export function useModalResearch(options?: {
             );
             if (updated.every((a) => a.status === "completed" || a.status === "failed")) {
               setIsResearching(false);
-              optionsRef.current?.onAllComplete?.(updated);
+              // Defer out of the state-updater function to avoid setState-during-render
+              setTimeout(() => {
+                optionsRef.current?.onAllComplete?.(updated);
+              }, 0);
             }
             return updated;
           });

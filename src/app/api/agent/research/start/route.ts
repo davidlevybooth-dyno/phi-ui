@@ -1,15 +1,26 @@
 /**
- * Research Job Start API
+ * Research Start API
  * POST /api/agent/research/start
  *
- * Starts a Google GenAI deep research interaction.
- * Returns an interactionId that the client uses to stream results.
+ * Creates a deep research interaction in background mode and returns the
+ * interaction ID. The client then connects to GET /api/agent/research/[id]/stream
+ * to stream thinking steps and the final report.
+ *
+ * Non-streaming create resolves in ~800ms. The stream endpoint replays all
+ * events (including thinking steps) from the beginning when no lastEventId
+ * is provided, so no thinking steps are missed.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
+
+type InteractionsClient = {
+  interactions: {
+    create: (opts: Record<string, unknown>) => Promise<{ id: string }>;
+  };
+};
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,12 +39,9 @@ export async function POST(request: NextRequest) {
     }
 
     const client = new GoogleGenAI({ apiKey });
+    const interactions = (client as unknown as InteractionsClient).interactions;
 
-    const interaction = await (client as unknown as {
-      interactions: {
-        create: (opts: Record<string, unknown>) => Promise<{ id: string }>;
-      };
-    }).interactions.create({
+    const interaction = await interactions.create({
       input: query,
       agent: "deep-research-pro-preview-12-2025",
       background: true,
@@ -43,10 +51,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({
-      interactionId: interaction.id,
-      status: "running",
-    });
+    return NextResponse.json({ interactionId: interaction.id });
   } catch (error) {
     console.error("[agent/research/start] error:", error);
     return NextResponse.json(

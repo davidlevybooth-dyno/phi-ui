@@ -58,9 +58,9 @@ async function handleResponse<T>(res: Response): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = FETCH_TIMEOUT_MS): Promise<Response> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   return fetch(url, { ...init, signal: controller.signal }).finally(() =>
     clearTimeout(timer)
   );
@@ -83,12 +83,12 @@ export async function apiGet<T>(
   return handleResponse<T>(res);
 }
 
-export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
+export async function apiPost<T>(path: string, body?: unknown, timeoutMs?: number): Promise<T> {
   const res = await fetchWithTimeout(`${BASE_URL}${path}`, {
     method: "POST",
     headers: buildHeaders(),
     body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  }, timeoutMs);
   return handleResponse<T>(res);
 }
 

@@ -1,10 +1,13 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useSessionStore } from "@/lib/stores/auth-store";
+import { planWorkflow, planWorkflowPublic } from "@/lib/api/workflows";
 import { Badge } from "@/components/ui/badge";
 import {
-  Loader2, CheckCircle2, ChevronDown, ChevronUp, ChevronRight, Route, ClipboardList, XCircle,
+  Loader2, CheckCircle2, ChevronDown, ChevronUp, ChevronRight, Route, ClipboardList, XCircle, Workflow, Info,
 } from "lucide-react";
+import Link from "next/link";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { WorkflowGraph, type WorkflowSpec } from "@/components/agent/workflow-graph";
 import { usePlanStream } from "@/hooks/use-plan-stream";
@@ -16,12 +19,56 @@ interface PlanMessageProps {
   query: string;
   /** When provided, renders a completed plan without streaming */
   initialPlanText?: string;
+  /** Called as soon as report generation starts (open panel in loading state) */
+  onReportStarted?: () => void;
+  /** Called once the research report has been generated */
+  onReportReady?: (report: string) => void;
 }
 
-/** Render inline markdown: **bold**, *italic*, `code` */
+// ── Shared math + inline rendering ───────────────────────────────────────────
+
+const LATEX_SYMBOLS: Record<string, string> = {
+  alpha: "α", beta: "β", gamma: "γ", delta: "δ", epsilon: "ε",
+  varepsilon: "ε", zeta: "ζ", eta: "η", theta: "θ",
+  iota: "ι", kappa: "κ", lambda: "λ", mu: "μ", nu: "ν",
+  xi: "ξ", pi: "π", rho: "ρ", sigma: "σ", tau: "τ",
+  upsilon: "υ", phi: "φ", varphi: "φ", chi: "χ", psi: "ψ", omega: "ω",
+  Gamma: "Γ", Delta: "Δ", Theta: "Θ", Lambda: "Λ", Xi: "Ξ",
+  Pi: "Π", Sigma: "Σ", Upsilon: "Υ", Phi: "Φ", Psi: "Ψ", Omega: "Ω",
+  approx: "≈", sim: "~", simeq: "≃", neq: "≠",
+  geq: "≥", ge: "≥", leq: "≤", le: "≤",
+  pm: "±", times: "×", cdot: "·", ldots: "…",
+  AA: "Å", circ: "°", infty: "∞", partial: "∂",
+  rightarrow: "→", leftarrow: "←", to: "→",
+};
+
+function processLatexString(s: string): string {
+  s = s.replace(/\\text\{([^}]*)\}/g, "$1");
+  s = s.replace(/\\([A-Za-z]+)/g, (m, name: string) => LATEX_SYMBOLS[name] ?? m);
+  return s;
+}
+
+function renderMathContent(expr: string): React.ReactNode {
+  const s = processLatexString(expr);
+  const parts: React.ReactNode[] = [];
+  const pattern = /\^\{([^}]+)\}|_\{([^}]+)\}|\^([^\s_^{}\n])|_([^\s_^{}\n])/g;
+  let last = 0; let m: RegExpExecArray | null; let k = 0;
+  while ((m = pattern.exec(s)) !== null) {
+    if (m.index > last) parts.push(s.slice(last, m.index));
+    if (m[1] !== undefined) parts.push(<sup key={k++}>{m[1]}</sup>);
+    else if (m[2] !== undefined) parts.push(<sub key={k++}>{m[2]}</sub>);
+    else if (m[3] !== undefined) parts.push(<sup key={k++}>{m[3]}</sup>);
+    else if (m[4] !== undefined) parts.push(<sub key={k++}>{m[4]}</sub>);
+    last = m.index + m[0].length;
+  }
+  if (last < s.length) parts.push(s.slice(last));
+  return parts.length === 0 ? "" : parts.length === 1 ? parts[0] : <>{parts}</>;
+}
+
+/** Render inline markdown + LaTeX math: **bold**, *italic*, `code`, $math$ */
 function renderInline(text: string): React.ReactNode {
   const segments: React.ReactNode[] = [];
-  const pattern = /(\*\*[^*\n]+\*\*|`[^`\n]+`|\*[^*\n]+\*)/g;
+  const pattern = /(\*\*[^*\n]+\*\*|`[^`\n]+`|\*[^*\n]+\*|\$[^$\n]+\$)/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
   let key = 0;
@@ -32,8 +79,10 @@ function renderInline(text: string): React.ReactNode {
       segments.push(<strong key={key++} className="font-semibold text-foreground">{token.slice(2, -2)}</strong>);
     } else if (token.startsWith("`")) {
       segments.push(<code key={key++} className="rounded bg-muted px-1 py-0.5 text-xs font-mono">{token.slice(1, -1)}</code>);
-    } else {
+    } else if (token.startsWith("*")) {
       segments.push(<em key={key++}>{token.slice(1, -1)}</em>);
+    } else if (token.startsWith("$")) {
+      segments.push(<span key={key++} className="italic">{renderMathContent(token.slice(1, -1))}</span>);
     }
     lastIndex = match.index + token.length;
   }
@@ -96,6 +145,14 @@ function ResearchQuestionItem({ question, artifact, isResearching }: ResearchQue
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-sm">{renderInline(question)}</span>
+                {/* "Starting remote agent…" — shown only before any data arrives */}
+                {artifact && (status === "pending" || status === "streaming") &&
+                  artifact.toolCalls.length === 0 && artifact.turnCount === 0 && (
+                  <Badge variant="outline" className="text-[10px] h-4 px-1.5 gap-1 text-muted-foreground animate-pulse">
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400" />
+                    Starting remote agent…
+                  </Badge>
+                )}
                 {artifact && artifact.toolCalls.length > 0 && (
                   <Badge variant="outline" className="text-[10px] h-4 px-1">
                     {artifact.toolCalls.length} tools
@@ -251,6 +308,11 @@ function parseResearchQuestions(text: string): string[] {
   return questions;
 }
 
+function extractComputationalPrimitives(planText: string): string {
+  const match = planText.match(/## Computational Primitives([\s\S]*?)(?=\n## |\n# |$)/);
+  return match ? match[0].trim() : planText.slice(0, 2000);
+}
+
 function extractWorkflowSpec(text: string): WorkflowSpec | null {
   const jsonMatch = text.match(/```(?:json)?\s*(\{[\s\S]*?"nodes"\s*:[\s\S]*?"edges"\s*:[\s\S]*?\})\s*```/);
   if (!jsonMatch) return null;
@@ -265,10 +327,117 @@ function extractWorkflowSpec(text: string): WorkflowSpec | null {
 
 // ── PlanMessage ───────────────────────────────────────────────────────────────
 
-export function PlanMessage({ query, initialPlanText }: PlanMessageProps) {
+export function PlanMessage({ query, initialPlanText, onReportStarted, onReportReady }: PlanMessageProps) {
   const [workflowOpen, setWorkflowOpen] = useState(true);
+  const [reportGenerating, setReportGenerating] = useState(false);
+  const [workflowGenerating, setWorkflowGenerating] = useState(false);
+  const [apiWorkflowSpec, setApiWorkflowSpec] = useState<WorkflowSpec | null>(null);
+  const [researchComplete, setResearchComplete] = useState(false);
+
+  const onReportReadyRef = useRef(onReportReady);
+  onReportReadyRef.current = onReportReady;
+  const onReportStartedRef = useRef(onReportStarted);
+  onReportStartedRef.current = onReportStarted;
+  // Prevents onAllComplete from firing report/workflow generation more than once
+  // per PlanMessage instance (guards against Strict Mode double-invocation).
+  const postResearchFiredRef = useRef(false);
+
+  // Workflow is only available for authenticated users (dashboard).
+  // On the public agent page apiKey is null — we skip gracefully.
+  const apiKey = useSessionStore((s) => s.apiKey);
+
   const { status, text, startPlan, stop } = usePlanStream();
-  const { artifacts, isResearching, startResearch: startModalResearch } = useModalResearch();
+
+  // Always holds the latest plan text — safe to close over in async callbacks
+  const planTextRef = useRef(initialPlanText ?? text);
+  planTextRef.current = initialPlanText ?? text;
+
+  // ── Shared workflow generation logic (used by auto-trigger + manual button) ─
+  // Authenticated users hit /plan (saves to DB); public users hit /plan/public.
+  const triggerWorkflow = useCallback(async () => {
+    setWorkflowGenerating(true);
+    try {
+      const primitives = extractComputationalPrimitives(planTextRef.current);
+      const body = {
+        prompt: primitives,
+        disable_auto_recommendations: false,
+        auto_publish: false,
+        execute_immediately: false,
+      };
+      const isAuthenticated = Boolean(useSessionStore.getState().apiKey);
+      const raw = isAuthenticated
+        ? await planWorkflow(body)
+        : await planWorkflowPublic(body);
+      const spec = raw.spec as WorkflowSpec | undefined;
+      if (spec && Array.isArray(spec.nodes) && spec.nodes.length > 0) {
+        setApiWorkflowSpec(spec);
+      } else {
+        console.warn("[PlanMessage] workflow returned no usable spec:", raw);
+      }
+    } catch (err) {
+      console.error("[PlanMessage] workflow generation failed:", err);
+    } finally {
+      setWorkflowGenerating(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Keep a stable ref so onAllComplete can always call the latest version
+  const triggerWorkflowRef = useRef(triggerWorkflow);
+  triggerWorkflowRef.current = triggerWorkflow;
+
+  const { artifacts, isResearching, startResearch: startModalResearch } = useModalResearch({
+    onAllComplete: (completedArtifacts) => {
+      // Always mark research as complete so the manual button can appear,
+      // even if Strict Mode fires this callback more than once.
+      setResearchComplete(true);
+
+      if (postResearchFiredRef.current) return;
+      postResearchFiredRef.current = true;
+
+      const withAnswers = completedArtifacts.filter((a) => a.answer && a.status === "completed");
+
+      // ── Report: stream text progressively into the panel ────────────
+      if (withAnswers.length > 0) {
+        onReportStartedRef.current?.();
+        ;(async () => {
+          setReportGenerating(true);
+          try {
+            const res = await fetch("/api/agent/report", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                artifacts: withAnswers.map((a) => ({
+                  question: a.question,
+                  answer: a.answer,
+                  toolCalls: a.toolCalls,
+                  turnCount: a.turnCount,
+                })),
+                planText: planTextRef.current,
+              }),
+            });
+            if (!res.ok || !res.body) throw new Error("Report generation failed");
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            let accumulated = "";
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              accumulated += decoder.decode(value, { stream: true });
+              onReportReadyRef.current?.(accumulated);
+            }
+          } catch (err) {
+            console.error("[PlanMessage] report generation failed:", err);
+          } finally {
+            setReportGenerating(false);
+          }
+        })();
+      }
+
+      // ── Workflow: auto-trigger via stable ref ────────────────────────
+      void triggerWorkflowRef.current();
+    },
+  });
   const startedRef = useRef(false);
   const researchStartedRef = useRef(false);
 
@@ -286,7 +455,8 @@ export function PlanMessage({ query, initialPlanText }: PlanMessageProps) {
   const planText = initialPlanText ?? text;
   const isStreaming = !initialPlanText && (status === "planning" || status === "idle");
   const isError = status === "error";
-  const workflowSpec = extractWorkflowSpec(planText);
+  // Prefer the live API spec; fall back to any JSON block embedded in the plan text
+  const workflowSpec = apiWorkflowSpec ?? extractWorkflowSpec(planText);
 
   // Auto-start Modal research when plan generation completes
   useEffect(() => {
@@ -303,7 +473,6 @@ export function PlanMessage({ query, initialPlanText }: PlanMessageProps) {
       {/* Header */}
       <div className="flex items-center gap-2">
         <ClipboardList className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm font-medium">Plan</span>
         {isStreaming && (
           <Badge variant="secondary" className="gap-1 text-xs">
             <Loader2 className="h-3 w-3 animate-spin" />
@@ -316,7 +485,19 @@ export function PlanMessage({ query, initialPlanText }: PlanMessageProps) {
             Researching
           </Badge>
         )}
-        {!isStreaming && !isResearching && (status === "complete" || initialPlanText) && (
+        {reportGenerating && (
+          <Badge variant="secondary" className="gap-1 text-xs">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Generating report…
+          </Badge>
+        )}
+        {workflowGenerating && (
+          <Badge variant="secondary" className="gap-1 text-xs">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Generating workflow…
+          </Badge>
+        )}
+        {!isStreaming && !isResearching && !reportGenerating && !workflowGenerating && (status === "complete" || initialPlanText) && (
           <Badge variant="outline" className="text-xs gap-1">
             <CheckCircle2 className="h-3 w-3 text-green-600" />
             Complete
@@ -335,26 +516,49 @@ export function PlanMessage({ query, initialPlanText }: PlanMessageProps) {
         </div>
       )}
 
+      {/* Generate workflow button — available for all users after research completes */}
+      {researchComplete && !workflowSpec && !workflowGenerating && (
+        <button
+          onClick={() => void triggerWorkflow()}
+          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors border border-dashed border-muted-foreground/30 rounded px-2.5 py-1 hover:border-muted-foreground/60"
+        >
+          <Workflow className="h-3 w-3" />
+          Generate workflow
+        </button>
+      )}
+
       {/* Workflow graph */}
       {workflowSpec && workflowSpec.nodes.length > 0 && (
-        <Collapsible open={workflowOpen} onOpenChange={setWorkflowOpen}>
-          <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md border bg-muted/30 px-3 py-2 text-sm font-medium hover:bg-muted/50 transition-colors">
-            <div className="flex items-center gap-2">
-              <Route className="h-3.5 w-3.5" />
-              <span>Workflow graph</span>
-              <Badge variant="outline" className="text-xs">{workflowSpec.nodes.length} steps</Badge>
+        <>
+          <Collapsible open={workflowOpen} onOpenChange={setWorkflowOpen}>
+            <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md border bg-muted/30 px-3 py-2 text-sm font-medium hover:bg-muted/50 transition-colors">
+              <div className="flex items-center gap-2">
+                <Route className="h-3.5 w-3.5" />
+                <span>Workflow graph</span>
+                <Badge variant="outline" className="text-xs">{workflowSpec.nodes.length} steps</Badge>
+              </div>
+              {workflowOpen
+                ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+                : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+              }
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="mt-1">
+                <WorkflowGraph spec={workflowSpec} height={420} />
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+          {/* Nudge unauthenticated users to sign in to run/save */}
+          {!apiKey && (
+            <div className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs dark:border-blue-800 dark:bg-blue-950/20">
+              <Info className="size-3 shrink-0 text-blue-400" />
+              <span className="text-blue-700 dark:text-blue-200">
+                <Link href="/login" className="font-medium underline underline-offset-2 hover:no-underline">Sign in</Link>
+                {" "}to run and save this workflow.
+              </span>
             </div>
-            {workflowOpen
-              ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
-              : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-            }
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <div className="mt-1">
-              <WorkflowGraph spec={workflowSpec} height={420} />
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
+          )}
+        </>
       )}
     </div>
   );
