@@ -19,8 +19,20 @@ import { DynoLogo } from "@/components/shared/dyno-logo";
  * acceptance of the Terms of Service and Privacy Policy is affirmatively
  * captured before account creation.
  */
+const TOS_KEY = "dyno-phi:tos-accepted";
+
 export default function LoginPage() {
-  const [accepted, setAccepted] = useState(false);
+  const [accepted, setAccepted] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return sessionStorage.getItem(TOS_KEY) === "true";
+  });
+
+  function handleAccept(v: boolean | "indeterminate") {
+    const next = v === true;
+    if (next) sessionStorage.setItem(TOS_KEY, "true");
+    else sessionStorage.removeItem(TOS_KEY);
+    setAccepted(next);
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-8 px-4">
@@ -54,7 +66,8 @@ export default function LoginPage() {
               <div className="flex items-start gap-3 text-sm">
                 <Checkbox
                   id="terms"
-                  onCheckedChange={(v: boolean | "indeterminate") => setAccepted(v === true)}
+                  checked={accepted}
+                  onCheckedChange={handleAccept}
                   className="mt-0.5 shrink-0"
                 />
                 <label

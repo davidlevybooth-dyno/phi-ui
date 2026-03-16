@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { Waitlist } from "@clerk/nextjs";
 import { DynoLogo } from "@/components/shared/dyno-logo";
@@ -36,6 +37,12 @@ export default function WaitlistPage() {
         <Waitlist />
         <p className="text-xs text-muted-foreground text-center max-w-xs">
           We&apos;re preparing for launch. Join the waitlist and we&apos;ll reach out when your spot is ready.
+        </p>
+        <p className="text-xs text-muted-foreground text-center">
+          Already have access?{" "}
+          <Link href="/login" className="underline underline-offset-2 text-foreground hover:text-foreground/70">
+            Sign in
+          </Link>
         </p>
       </motion.div>
     </div>
