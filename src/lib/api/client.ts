@@ -5,11 +5,18 @@ const FETCH_TIMEOUT_MS = 30_000;
 // Single source of truth for the API base URL.
 // Dev:  set NEXT_PUBLIC_API_BASE_URL in .env.local (staging URL, no trailing slash)
 // Prod: set NEXT_PUBLIC_API_BASE_URL in Vercel env vars (prod URL, no trailing slash)
-const BASE_URL = (
+const _rawBaseUrl =
   process.env.NEXT_PUBLIC_API_BASE_URL ??
-  process.env.NEXT_PUBLIC_DYNO_API_BASE_URL ??
-  "https://api.dyno-agents.app"
-).replace(/\/$/, ""); // strip any accidental trailing slash
+  process.env.NEXT_PUBLIC_DYNO_API_BASE_URL;
+
+if (!_rawBaseUrl && process.env.NODE_ENV === "development") {
+  console.error(
+    "[API Client] NEXT_PUBLIC_API_BASE_URL is not set in .env.local. " +
+    "Falling back to production API — requests will hit api.dyno-agents.app."
+  );
+}
+
+const BASE_URL = (_rawBaseUrl ?? "https://api.dyno-agents.app").replace(/\/$/, "");
 
 export class ApiError extends Error {
   constructor(

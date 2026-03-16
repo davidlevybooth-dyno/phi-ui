@@ -23,17 +23,29 @@ interface ArtifactInput {
 
 export async function POST(request: NextRequest) {
   try {
-    const { artifacts, planText } = (await request.json()) as {
-      artifacts: ArtifactInput[];
-      planText?: string;
-    };
-
-    if (!artifacts || artifacts.length === 0) {
-      return NextResponse.json(
-        { error: "artifacts are required" },
-        { status: 400 }
-      );
+    let rawArtifacts: unknown;
+    let planText: string | undefined;
+    try {
+      const body = await request.json() as { artifacts?: unknown; planText?: unknown };
+      rawArtifacts = body.artifacts;
+      planText = typeof body.planText === "string" ? body.planText : undefined;
+    } catch {
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
     }
+
+    if (!Array.isArray(rawArtifacts) || rawArtifacts.length === 0) {
+      return NextResponse.json({ error: "artifacts are required" }, { status: 400 });
+    }
+
+    // Cap to 20 artifacts and 2 000 chars per answer to bound prompt size.
+    const artifacts: ArtifactInput[] = (rawArtifacts as ArtifactInput[])
+      .slice(0, 20)
+      .map((a) => ({
+        question: String(a.question ?? "").slice(0, 500),
+        answer: String(a.answer ?? "").slice(0, 2000),
+        toolCalls: Array.isArray(a.toolCalls) ? a.toolCalls.map(String) : [],
+        turnCount: typeof a.turnCount === "number" ? a.turnCount : 0,
+      }));
 
     const artifactsContext = artifacts
       .map(

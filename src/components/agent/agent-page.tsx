@@ -3,108 +3,30 @@
 import React, { useEffect, useRef, useCallback, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { X, Download, FileText, ChevronDown, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ChevronDown } from "lucide-react";
 import { ChatInput } from "./chat-input";
 import { MODE_EXAMPLES } from "./chat-empty-state";
 import { UserMessage } from "./message/user-message";
 import { AssistantMessage } from "./message/assistant-message";
 import { PlanMessage } from "./message/plan-message";
 import { ResearchMessage } from "./message/research-message";
-import { ResearchRenderer } from "./message/research-message";
+import { ReportPanel } from "./report-panel";
 import { useChatSessions, type AgentMode } from "@/hooks/use-chat-sessions";
+import { getTextFromParts } from "@/lib/utils/message";
 import { cn } from "@/lib/utils";
-
-// ── Report panel ──────────────────────────────────────────────────────────────
-
-interface ReportPanelProps {
-  /** Empty string means "generating" — show loading state */
-  report: string;
-  onClose: () => void;
-  loadingMessage?: string;
-}
-
-function ReportPanel({ report, onClose, loadingMessage = "Synthesizing research findings…" }: ReportPanelProps) {
-  const isGenerating = report === "";
-
-  const download = () => {
-    const blob = new Blob([report], { type: "text/markdown" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `research-report-${new Date().toISOString().split("T")[0]}.md`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  return (
-    <div className="flex flex-col h-full animate-in slide-in-from-right duration-300">
-      {/* Sticky header */}
-      <div className="flex items-center justify-between px-5 py-3 border-b shrink-0">
-        <div className="flex items-center gap-2">
-          <FileText className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-medium">Research Report</span>
-          {isGenerating && (
-            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Loader2 className="h-3 w-3 animate-spin" />
-              Writing…
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-1">
-          {!isGenerating && (
-            <Button variant="ghost" size="sm" onClick={download} className="h-7 px-2 text-xs gap-1">
-              <Download className="h-3.5 w-3.5" />
-              Download
-            </Button>
-          )}
-          <Button variant="ghost" size="icon" onClick={onClose} className="h-7 w-7">
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-
-      {/* Body */}
-      {isGenerating ? (
-        <div className="flex-1 flex flex-col items-center justify-center gap-4 text-muted-foreground">
-          <Loader2 className="h-6 w-6 animate-spin" />
-          <p className="text-sm">{loadingMessage}</p>
-        </div>
-      ) : (
-        <div className="flex-1 overflow-y-auto">
-          {/* Document-style padding with constrained width */}
-          <div className="px-10 py-8 max-w-2xl mx-auto">
-            <ResearchRenderer text={report} />
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
 // ── Agent page ────────────────────────────────────────────────────────────────
 
 interface PendingSpecial {
   type: "plan" | "research";
   query: string;
+  id: string;
 }
 
 interface AgentPageProps {
   rateLimits?: Partial<Record<AgentMode, number>>;
   onMessageSent?: (mode: AgentMode) => void;
   sessionId?: string;
-}
-
-function getTextFromParts(parts: unknown[] | undefined): string {
-  if (!parts) return "";
-  return parts
-    .filter((p): p is { type: string; text: string } =>
-      typeof p === "object" && p !== null && (p as { type: string }).type === "text"
-    )
-    .map((p) => p.text)
-    .join("");
 }
 
 export function AgentPage({ rateLimits, onMessageSent, sessionId }: AgentPageProps) {
@@ -141,13 +63,13 @@ export function AgentPage({ rateLimits, onMessageSent, sessionId }: AgentPagePro
       if (!currentSessionId.current) return;
       const firstUserText = messages.find((m) => m.role === "user");
       const title = firstUserText
-        ? getTextFromParts(firstUserText.parts as unknown[]).slice(0, 60) || "Conversation"
+        ? getTextFromParts(firstUserText.parts).slice(0, 60) || "Conversation"
         : "Conversation";
       updateSession(currentSessionId.current, {
         messages: messages.map((m) => ({
           id: m.id,
           role: m.role as "user" | "assistant",
-          content: getTextFromParts(m.parts as unknown[]),
+          content: getTextFromParts(m.parts),
           createdAt: new Date().toISOString(),
         })),
         title,
@@ -161,12 +83,12 @@ export function AgentPage({ rateLimits, onMessageSent, sessionId }: AgentPagePro
     (text: string) => {
       if (mode === "plan") {
         ensureSession("plan");
-        setPendingSpecials((prev) => [...prev, { type: "plan", query: text }]);
+        setPendingSpecials((prev) => [...prev, { type: "plan", query: text, id: `plan-${Date.now()}` }]);
         onMessageSent?.("plan");
         saveToSession("plan");
       } else if (mode === "research") {
         ensureSession("research");
-        setPendingSpecials((prev) => [...prev, { type: "research", query: text }]);
+        setPendingSpecials((prev) => [...prev, { type: "research", query: text, id: `research-${Date.now()}` }]);
         onMessageSent?.("research");
         saveToSession("research");
       } else {
@@ -227,7 +149,7 @@ export function AgentPage({ rateLimits, onMessageSent, sessionId }: AgentPagePro
           <div className="flex-1 overflow-y-auto px-4 py-4">
             <div className="max-w-2xl mx-auto space-y-6">
               {messages.map((msg) => {
-                const textContent = getTextFromParts(msg.parts as unknown[]);
+                const textContent = getTextFromParts(msg.parts);
                 return (
                   <div key={msg.id}>
                     {msg.role === "user" ? (
@@ -240,10 +162,9 @@ export function AgentPage({ rateLimits, onMessageSent, sessionId }: AgentPagePro
               })}
               {pendingSpecials.map((ps, i) => {
                 // Only the most-recently submitted plan controls the report panel.
-                // Earlier plans get undefined callbacks so their completions are no-ops.
                 const isLatest = i === pendingSpecials.length - 1;
                 return (
-                  <div key={`ps-${i}`} className="space-y-6">
+                  <div key={ps.id} className="space-y-6">
                     <UserMessage content={ps.query} />
                     {ps.type === "plan" ? (
                       <PlanMessage
@@ -253,6 +174,7 @@ export function AgentPage({ rateLimits, onMessageSent, sessionId }: AgentPagePro
                           setReportContent("");
                         } : undefined}
                         onReportReady={isLatest ? (report) => setReportContent(report) : undefined}
+                        onReportError={isLatest ? () => setReportContent(null) : undefined}
                       />
                     ) : (
                       <ResearchMessage

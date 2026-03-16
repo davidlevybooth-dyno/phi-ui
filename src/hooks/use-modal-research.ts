@@ -2,9 +2,17 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+const _modalEndpoint = process.env.NEXT_PUBLIC_MODAL_RESEARCH_ENDPOINT;
+
+if (!_modalEndpoint && process.env.NODE_ENV === "development") {
+  console.error(
+    "[useModalResearch] NEXT_PUBLIC_MODAL_RESEARCH_ENDPOINT is not set in .env.local. " +
+    "Falling back to production Modal endpoint."
+  );
+}
+
 const MODAL_ENDPOINT =
-  process.env.NEXT_PUBLIC_MODAL_RESEARCH_ENDPOINT ||
-  "https://dynotx--research-agent-streaming-fastapi-app.modal.run";
+  _modalEndpoint ?? "https://dynotx--research-agent-streaming-fastapi-app.modal.run";
 
 export interface ResearchArtifact {
   id: string;
@@ -22,6 +30,8 @@ export function useModalResearch(options?: {
   const [artifacts, setArtifacts] = useState<ResearchArtifact[]>([]);
   const [isResearching, setIsResearching] = useState(false);
   const connections = useRef<Map<string, EventSource>>(new Map());
+  // Track deferred onAllComplete timeouts so they can be cancelled on unmount.
+  const pendingTimeouts = useRef<ReturnType<typeof setTimeout>[]>([]);
   const optionsRef = useRef(options);
   optionsRef.current = options;
 
@@ -66,10 +76,13 @@ export function useModalResearch(options?: {
             );
             if (updated.every((a) => a.status === "completed" || a.status === "failed")) {
               setIsResearching(false);
-              // Defer out of the state-updater function to avoid setState-during-render
-              setTimeout(() => {
+              // Defer out of the state-updater function to avoid setState-during-render.
+              // Track the ID so we can cancel it if the component unmounts first.
+              const tid = setTimeout(() => {
+                pendingTimeouts.current = pendingTimeouts.current.filter((t) => t !== tid);
                 optionsRef.current?.onAllComplete?.(updated);
               }, 0);
+              pendingTimeouts.current.push(tid);
             }
             return updated;
           });
@@ -121,8 +134,10 @@ export function useModalResearch(options?: {
 
   useEffect(() => {
     const conns = connections.current;
+    const timeouts = pendingTimeouts.current;
     return () => {
       conns.forEach((es) => es.close());
+      timeouts.forEach((tid) => clearTimeout(tid));
     };
   }, []);
 

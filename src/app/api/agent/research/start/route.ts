@@ -24,7 +24,13 @@ type InteractionsClient = {
 
 export async function POST(request: NextRequest) {
   try {
-    const { query } = await request.json();
+    let query: string;
+    try {
+      const body = await request.json() as { query?: unknown };
+      query = typeof body.query === "string" ? body.query : "";
+    } catch {
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
 
     if (!query) {
       return NextResponse.json({ error: "query is required" }, { status: 400 });

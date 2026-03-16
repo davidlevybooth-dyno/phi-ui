@@ -38,7 +38,16 @@ Be specific: cite PDB IDs, UniProt accessions, numerical thresholds, and experim
 
 export async function POST(request: NextRequest) {
   try {
-    const { query } = await request.json();
+    let query: string;
+    try {
+      const body = await request.json() as { query?: unknown };
+      query = typeof body.query === "string" ? body.query : "";
+    } catch {
+      return new Response(JSON.stringify({ error: "Invalid request body" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
 
     if (!query) {
       return new Response(JSON.stringify({ error: "query is required" }), {
