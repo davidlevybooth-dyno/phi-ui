@@ -53,6 +53,15 @@ function MetricTd({
   );
 }
 
+const METRIC_DESCRIPTIONS: Record<string, string> = {
+  iptm: "Interface predicted TM-score. Measures how well the predicted binder-target interface geometry matches the template. Values above 0.5 indicate confident interface prediction.",
+  plddt: "AF2 per-residue confidence score. Reflects AlphaFold2's per-residue confidence averaged over the binder. Values above 0.80 indicate a well-folded, confident prediction.",
+  ptm: "Predicted TM-score for the full complex. A global measure of structural confidence across the entire binder-target complex.",
+  ipae_ang: "Interface Predicted Aligned Error in Ångströms. Lower values indicate higher confidence in the relative orientation of binder and target. Values below 10 Å indicate a well-defined interface.",
+  ipsae: "Interface Score from Aligned Errors. A composite metric derived from AF2/AF3 error estimates, calibrated to better rank experimental binding success than ipTM alone.",
+  binder_rmsd: "Root-mean-square deviation of the binder backbone after superimposition. Measures how closely the designed binder matches a reference or self-consistency fold. Values below 3.5 Å indicate a stable, well-designed scaffold.",
+};
+
 export function FilterExplorer() {
   const [designs, setDesigns] = useState<DesignRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -354,6 +363,33 @@ export function FilterExplorer() {
             </div>
           )}
         </div>
+      </div>
+
+      <Separator />
+
+      {/* Filter metric documentation */}
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold">Metric reference</h3>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {FILTER_DEFS.map((f) => (
+            <div key={f.key} className="rounded-md border bg-muted/20 px-3 py-2.5 space-y-1">
+              <div className="flex items-center justify-between gap-2">
+                <code className="text-xs font-mono font-semibold">{f.label}</code>
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                  {f.direction === "min" ? "higher is better" : "lower is better"}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {METRIC_DESCRIPTIONS[f.key] ?? f.label}
+              </p>
+            </div>
+          ))}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Thresholds are calibrated from Dyno&apos;s internal benchmark of 60,010 designs per model
+          across 5 diverse protein targets. Default preset reflects typical experimental success
+          rates; Relaxed preset increases candidate yield at the cost of predicted quality.
+        </p>
       </div>
     </div>
   );

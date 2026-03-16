@@ -21,8 +21,15 @@ export interface PlanExecuteRequest {
   context?: Record<string, unknown>;
 }
 
+const WORKFLOW_TIMEOUT_MS = 120_000;
+
 export async function planWorkflow(request: PlanWorkflowRequest) {
-  return apiPost<Record<string, unknown>>("/v1/phi/workflows/plan", request);
+  return apiPost<Record<string, unknown>>("/v1/phi/workflows/plan", request, WORKFLOW_TIMEOUT_MS);
+}
+
+/** Unauthenticated version — returns spec only, never saves to DB. */
+export async function planWorkflowPublic(request: PlanWorkflowRequest) {
+  return apiPost<Record<string, unknown>>("/v1/phi/workflows/plan/public", request, WORKFLOW_TIMEOUT_MS);
 }
 
 export async function planAndExecute(request: PlanExecuteRequest) {

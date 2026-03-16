@@ -3,12 +3,13 @@ import { getApiCredentials } from "./credentials";
 const FETCH_TIMEOUT_MS = 30_000;
 
 // Single source of truth for the API base URL.
-// Override for local API testing: set NEXT_PUBLIC_API_BASE_URL or NEXT_PUBLIC_DYNO_API_BASE_URL
-// (e.g. NEXT_PUBLIC_API_BASE_URL=http://localhost:8000). Next.js only exposes NEXT_PUBLIC_* to the client.
-const BASE_URL =
+// Dev:  set NEXT_PUBLIC_API_BASE_URL in .env.local (staging URL, no trailing slash)
+// Prod: set NEXT_PUBLIC_API_BASE_URL in Vercel env vars (prod URL, no trailing slash)
+const BASE_URL = (
   process.env.NEXT_PUBLIC_API_BASE_URL ??
   process.env.NEXT_PUBLIC_DYNO_API_BASE_URL ??
-  "https://api.dyno-agents.app";
+  "https://api.dyno-agents.app"
+).replace(/\/$/, ""); // strip any accidental trailing slash
 
 export class ApiError extends Error {
   constructor(
@@ -57,9 +58,9 @@ async function handleResponse<T>(res: Response): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = FETCH_TIMEOUT_MS): Promise<Response> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   return fetch(url, { ...init, signal: controller.signal }).finally(() =>
     clearTimeout(timer)
   );
@@ -82,12 +83,12 @@ export async function apiGet<T>(
   return handleResponse<T>(res);
 }
 
-export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
+export async function apiPost<T>(path: string, body?: unknown, timeoutMs?: number): Promise<T> {
   const res = await fetchWithTimeout(`${BASE_URL}${path}`, {
     method: "POST",
     headers: buildHeaders(),
     body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  }, timeoutMs);
   return handleResponse<T>(res);
 }
 

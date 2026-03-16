@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, MessageSquare, Briefcase, Database, Settings } from "lucide-react";
+import { LayoutDashboard, MessageSquare, Briefcase, Database, Settings, History } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -18,6 +18,7 @@ import { DynoLogo } from "@/components/shared/dyno-logo";
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/agent", label: "Agent", icon: MessageSquare },
+  { href: "/dashboard/chats", label: "Chats", icon: History },
   { href: "/dashboard/datasets", label: "Datasets", icon: Database },
   { href: "/dashboard/jobs", label: "Jobs", icon: Briefcase },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },

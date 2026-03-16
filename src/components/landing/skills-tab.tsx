@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
-import { Download, Terminal, Github } from "lucide-react";
+import { Download, Terminal, Github, BookOpen } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -193,6 +194,11 @@ export function SkillsTab() {
               title="Download skill file"
             >
               <Download className="size-3.5" />
+            </Button>
+            <Button asChild size="sm" variant="outline" className="size-8 p-0" title="CLI reference docs">
+              <Link href="/cli">
+                <BookOpen className="size-3.5" />
+              </Link>
             </Button>
           </div>
         </div>

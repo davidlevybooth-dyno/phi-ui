@@ -9,9 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DynoLogo } from "@/components/shared/dyno-logo";
 import { ModelGrid } from "@/components/landing/model-grid";
-import { DocsSection } from "@/components/landing/docs-section";
 import { SkillsTab } from "@/components/landing/skills-tab";
 import { FilterExplorer } from "@/components/landing/filter-explorer";
+import { DocsSection } from "@/components/landing/docs-section";
 
 const WORKFLOW_STEPS = [
   {
@@ -103,16 +103,16 @@ export default function LandingPage() {
                 <ArrowRight className="ml-1.5 size-3.5" />
               </Link>
             </Button>
+            <Button asChild variant="outline" className="rounded-full px-6">
+              <Link href="/agent">Agent</Link>
+            </Button>
           </Show>
           <Show when="signed-in">
             <Button asChild className="rounded-full px-6">
-              <Link href="/dashboard">
-                Go to dashboard
-                <ArrowRight className="ml-1.5 size-3.5" />
-              </Link>
+              <Link href="/dashboard">Dashboard</Link>
             </Button>
             <Button asChild variant="outline" className="rounded-full px-6">
-              <Link href="/dashboard/agent">Open agent</Link>
+              <Link href="/agent">Agent</Link>
             </Button>
           </Show>
         </motion.div>
@@ -142,7 +142,6 @@ export default function LandingPage() {
         {...fadeUp(0.48)}
         className="mx-auto max-w-6xl w-full px-6 pb-16"
       >
-        {/* shadcn TabsList provides the pill-slider; we own the content */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="mb-8 mx-auto flex w-full max-w-md">
             <TabsTrigger value="skills" className="flex-1">Skills</TabsTrigger>
@@ -160,9 +159,9 @@ export default function LandingPage() {
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.2, ease: "easeOut" as const }}
           >
-            {activeTab === "models" && <ModelGrid />}
-            {activeTab === "docs" && <DocsSection />}
             {activeTab === "skills" && <SkillsTab />}
+            {activeTab === "docs" && <DocsSection />}
+            {activeTab === "models" && <ModelGrid />}
             {activeTab === "filters" && <FilterExplorer />}
           </motion.div>
         </AnimatePresence>
