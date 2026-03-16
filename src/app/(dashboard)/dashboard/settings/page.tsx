@@ -63,24 +63,6 @@ export default function SettingsPage() {
 
         <APIKeys />
 
-        <Separator />
-
-        <div>
-          <p className="text-xs text-muted-foreground mb-2">Using your API key</p>
-          <pre className="bg-muted rounded-md p-3 text-xs overflow-x-auto leading-relaxed">
-            <code>{`# Base URL (no /api/v1 — phi appends it). Use http://localhost:8000 for local backend.
-export DYNO_API_BASE_URL="${process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://design.dynotx.com"}"
-export DYNO_API_KEY="YOUR_API_KEY"
-
-# Verify: phi login
-
-# Example curl
-curl -X POST ${process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.dyno-agents.app"}/v1/phi/jobs \\
-  -H "x-api-key: YOUR_API_KEY" \\
-  -H "Content-Type: application/json" \\
-  -d '{ "job_type": "esmfold", "params": { ... } }'`}</code>
-          </pre>
-        </div>
       </Card>
 
       {/* Org settings */}

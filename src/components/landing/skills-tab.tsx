@@ -38,8 +38,11 @@ uv tool install dyno-phi`;
 const SETUP_API_KEY = `# Get your key at design.dynotx.com/dashboard/settings
 export DYNO_API_KEY="your_key_here"`;
 
-const SKILL_PLUGIN = `# In Claude Code, run the plugin install command:
-/plugin install dyno-phi`;
+const SKILL_PLUGIN = `# In Claude Code, add the plugin from the marketplace:
+/plugin marketplace add dynotx/phi-cli
+
+# Then install it:
+/plugin install dyno-phi@phi-cli`;
 
 const SKILL_MANUAL = `# Download phi-skill.md and place it in your project's skills/ directory,
 # then reference it in your agent config:
@@ -248,10 +251,11 @@ export function SkillsTab() {
           />
           {skillMethod === "plugin" ? (
             <p className="text-xs text-muted-foreground">
-              The Dyno Phi skill is listed in the{" "}
-              <span className="text-foreground font-medium">Claude Code Skills Marketplace</span>.
-              Run <code className="font-mono bg-muted px-1 rounded">/plugin install dyno-phi</code> in
-              any Claude Code session to add it — no file management needed.
+              The Dyno Phi plugin is listed in the{" "}
+              <span className="text-foreground font-medium">Claude Code Plugin Marketplace</span>.
+              Run <code className="font-mono bg-muted px-1 rounded">/plugin marketplace add dynotx/phi-cli</code>{" "}
+              then <code className="font-mono bg-muted px-1 rounded">/plugin install dyno-phi@phi-cli</code> in
+              any Claude Code session — no file management needed.
             </p>
           ) : (
             <p className="text-xs text-muted-foreground">

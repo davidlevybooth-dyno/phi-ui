@@ -6,14 +6,15 @@ import { Card } from "@/components/ui/card";
 import { CodeHighlight } from "@/components/ui/code-highlight";
 import { type ModelInfo, CLAUDE_SKILLS } from "@/lib/models-data";
 
-const SETUP_SNIPPET = `# 1. Install the phi CLI (zero external dependencies)
-pip install -e ./skills/dyno-phi/
+const SETUP_SNIPPET = `# 1. Install the phi CLI
+pip install dyno-phi
+# or: uv tool install dyno-phi
 
 # 2. Set your API key
 export DYNO_API_KEY="your_key_here"
 
 # 3. Verify
-phi jobs`;
+phi login`;
 
 export function ModelCliTab({ model }: { model: ModelInfo }) {
   const masterSkill = CLAUDE_SKILLS.find((s) => s.id === "phi");
