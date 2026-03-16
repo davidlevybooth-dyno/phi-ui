@@ -25,11 +25,8 @@ export function PublicAgentShell() {
               phi-lite
               <ChevronDown className="h-3 w-3 opacity-50" />
             </span>
-            <Button asChild variant="ghost" size="sm">
-              <Link href="/login">Sign in</Link>
-            </Button>
-            <Button asChild size="sm" className="rounded-full px-4">
-              <Link href="/login?mode=register">Get started</Link>
+            <Button asChild size="sm">
+              <Link href="/waitlist">Sign in</Link>
             </Button>
           </div>
         </div>
