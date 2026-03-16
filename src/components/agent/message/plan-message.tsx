@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSessionStore } from "@/lib/stores/auth-store";
 import { planWorkflow, planWorkflowPublic } from "@/lib/api/workflows";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
-  Loader2, CheckCircle2, ChevronDown, ChevronUp, ChevronRight, Route, ClipboardList, XCircle, Workflow, Info,
+  Loader2, CheckCircle2, ChevronDown, ChevronUp, ChevronRight, Route, ClipboardList, XCircle, Workflow, Info, RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -13,6 +14,7 @@ import { WorkflowGraph, type WorkflowSpec } from "@/components/agent/workflow-gr
 import { usePlanStream } from "@/hooks/use-plan-stream";
 import { useModalResearch, type ResearchArtifact } from "@/hooks/use-modal-research";
 import { ResearchRenderer } from "@/components/agent/message/research-message";
+import { renderInline, parseLine, type ParsedLine } from "@/lib/utils/markdown";
 import { cn } from "@/lib/utils";
 
 interface PlanMessageProps {
@@ -23,98 +25,10 @@ interface PlanMessageProps {
   onReportStarted?: () => void;
   /** Called once the research report has been generated */
   onReportReady?: (report: string) => void;
+  /** Called when report generation fails so the panel can be closed */
+  onReportError?: () => void;
 }
 
-// ── Shared math + inline rendering ───────────────────────────────────────────
-
-const LATEX_SYMBOLS: Record<string, string> = {
-  alpha: "α", beta: "β", gamma: "γ", delta: "δ", epsilon: "ε",
-  varepsilon: "ε", zeta: "ζ", eta: "η", theta: "θ",
-  iota: "ι", kappa: "κ", lambda: "λ", mu: "μ", nu: "ν",
-  xi: "ξ", pi: "π", rho: "ρ", sigma: "σ", tau: "τ",
-  upsilon: "υ", phi: "φ", varphi: "φ", chi: "χ", psi: "ψ", omega: "ω",
-  Gamma: "Γ", Delta: "Δ", Theta: "Θ", Lambda: "Λ", Xi: "Ξ",
-  Pi: "Π", Sigma: "Σ", Upsilon: "Υ", Phi: "Φ", Psi: "Ψ", Omega: "Ω",
-  approx: "≈", sim: "~", simeq: "≃", neq: "≠",
-  geq: "≥", ge: "≥", leq: "≤", le: "≤",
-  pm: "±", times: "×", cdot: "·", ldots: "…",
-  AA: "Å", circ: "°", infty: "∞", partial: "∂",
-  rightarrow: "→", leftarrow: "←", to: "→",
-};
-
-function processLatexString(s: string): string {
-  s = s.replace(/\\text\{([^}]*)\}/g, "$1");
-  s = s.replace(/\\([A-Za-z]+)/g, (m, name: string) => LATEX_SYMBOLS[name] ?? m);
-  return s;
-}
-
-function renderMathContent(expr: string): React.ReactNode {
-  const s = processLatexString(expr);
-  const parts: React.ReactNode[] = [];
-  const pattern = /\^\{([^}]+)\}|_\{([^}]+)\}|\^([^\s_^{}\n])|_([^\s_^{}\n])/g;
-  let last = 0; let m: RegExpExecArray | null; let k = 0;
-  while ((m = pattern.exec(s)) !== null) {
-    if (m.index > last) parts.push(s.slice(last, m.index));
-    if (m[1] !== undefined) parts.push(<sup key={k++}>{m[1]}</sup>);
-    else if (m[2] !== undefined) parts.push(<sub key={k++}>{m[2]}</sub>);
-    else if (m[3] !== undefined) parts.push(<sup key={k++}>{m[3]}</sup>);
-    else if (m[4] !== undefined) parts.push(<sub key={k++}>{m[4]}</sub>);
-    last = m.index + m[0].length;
-  }
-  if (last < s.length) parts.push(s.slice(last));
-  return parts.length === 0 ? "" : parts.length === 1 ? parts[0] : <>{parts}</>;
-}
-
-/** Render inline markdown + LaTeX math: **bold**, *italic*, `code`, $math$ */
-function renderInline(text: string): React.ReactNode {
-  const segments: React.ReactNode[] = [];
-  const pattern = /(\*\*[^*\n]+\*\*|`[^`\n]+`|\*[^*\n]+\*|\$[^$\n]+\$)/g;
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-  let key = 0;
-  while ((match = pattern.exec(text)) !== null) {
-    if (match.index > lastIndex) segments.push(text.slice(lastIndex, match.index));
-    const token = match[0];
-    if (token.startsWith("**")) {
-      segments.push(<strong key={key++} className="font-semibold text-foreground">{token.slice(2, -2)}</strong>);
-    } else if (token.startsWith("`")) {
-      segments.push(<code key={key++} className="rounded bg-muted px-1 py-0.5 text-xs font-mono">{token.slice(1, -1)}</code>);
-    } else if (token.startsWith("*")) {
-      segments.push(<em key={key++}>{token.slice(1, -1)}</em>);
-    } else if (token.startsWith("$")) {
-      segments.push(<span key={key++} className="italic">{renderMathContent(token.slice(1, -1))}</span>);
-    }
-    lastIndex = match.index + token.length;
-  }
-  if (lastIndex < text.length) segments.push(text.slice(lastIndex));
-  return segments.length === 0 ? text : <>{segments}</>;
-}
-
-type LineKind = "h1" | "h2" | "checkbox" | "numbered-checkbox" | "text" | "empty";
-
-interface ParsedLine {
-  kind: LineKind;
-  level?: number;
-  checked?: boolean;
-  index?: number;
-  content: string;
-}
-
-function parseLine(line: string): ParsedLine {
-  if (line.startsWith("# ")) return { kind: "h1", content: line.slice(2) };
-  if (line.startsWith("## ")) return { kind: "h2", content: line.slice(3) };
-  if (line.startsWith("### ")) return { kind: "h2", level: 3, content: line.slice(4) };
-  if (line.trim() === "") return { kind: "empty", content: "" };
-  const numberedCheckbox = line.match(/^(\d+)\.\s*\[( |x)\]\s*(.*)/);
-  if (numberedCheckbox) {
-    return { kind: "numbered-checkbox", checked: numberedCheckbox[2] === "x", index: parseInt(numberedCheckbox[1]), content: numberedCheckbox[3] };
-  }
-  const checkbox = line.match(/^[-*]\s*\[( |x)\]\s*(.*)/);
-  if (checkbox) {
-    return { kind: "checkbox", checked: checkbox[1] === "x", content: checkbox[2] };
-  }
-  return { kind: "text", content: line };
-}
 
 // ── Research question item — exact structure-design style ─────────────────────
 
@@ -215,7 +129,7 @@ interface PlanRendererProps {
 }
 
 function PlanRenderer({ text, artifacts = [], isResearching = false }: PlanRendererProps) {
-  const lines = text.split("\n");
+  const lines = useMemo(() => text.split("\n"), [text]);
   // These are mutated during the map — intentional linear scan
   let inResearchSection = false;
   let researchIdx = 0;
@@ -223,7 +137,7 @@ function PlanRenderer({ text, artifacts = [], isResearching = false }: PlanRende
   return (
     <div className="space-y-0.5 text-sm">
       {lines.map((line, i) => {
-        const parsed = parseLine(line);
+        const parsed: ParsedLine = parseLine(line);
 
         // Track section transitions
         if (parsed.kind === "h2") {
@@ -327,7 +241,7 @@ function extractWorkflowSpec(text: string): WorkflowSpec | null {
 
 // ── PlanMessage ───────────────────────────────────────────────────────────────
 
-export function PlanMessage({ query, initialPlanText, onReportStarted, onReportReady }: PlanMessageProps) {
+export function PlanMessage({ query, initialPlanText, onReportStarted, onReportReady, onReportError }: PlanMessageProps) {
   const [workflowOpen, setWorkflowOpen] = useState(true);
   const [reportGenerating, setReportGenerating] = useState(false);
   const [workflowGenerating, setWorkflowGenerating] = useState(false);
@@ -338,6 +252,8 @@ export function PlanMessage({ query, initialPlanText, onReportStarted, onReportR
   onReportReadyRef.current = onReportReady;
   const onReportStartedRef = useRef(onReportStarted);
   onReportStartedRef.current = onReportStarted;
+  const onReportErrorRef = useRef(onReportError);
+  onReportErrorRef.current = onReportError;
   // Prevents onAllComplete from firing report/workflow generation more than once
   // per PlanMessage instance (guards against Strict Mode double-invocation).
   const postResearchFiredRef = useRef(false);
@@ -369,7 +285,7 @@ export function PlanMessage({ query, initialPlanText, onReportStarted, onReportR
         ? await planWorkflow(body)
         : await planWorkflowPublic(body);
       const spec = raw.spec as WorkflowSpec | undefined;
-      if (spec && Array.isArray(spec.nodes) && spec.nodes.length > 0) {
+      if (spec && Array.isArray(spec.nodes) && spec.nodes.length > 0 && Array.isArray(spec.edges)) {
         setApiWorkflowSpec(spec);
       } else {
         console.warn("[PlanMessage] workflow returned no usable spec:", raw);
@@ -428,6 +344,8 @@ export function PlanMessage({ query, initialPlanText, onReportStarted, onReportR
             }
           } catch (err) {
             console.error("[PlanMessage] report generation failed:", err);
+            // Close the panel so it doesn't spin indefinitely.
+            onReportErrorRef.current?.();
           } finally {
             setReportGenerating(false);
           }
@@ -505,6 +423,22 @@ export function PlanMessage({ query, initialPlanText, onReportStarted, onReportR
         )}
         {isError && <Badge variant="destructive" className="text-xs">Error</Badge>}
       </div>
+
+      {/* Error state with retry */}
+      {isError && (
+        <div className="flex items-center gap-3 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+          <span>Plan generation failed.</span>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-6 px-2 text-xs gap-1"
+            onClick={() => startPlan(query)}
+          >
+            <RefreshCw className="h-3 w-3" />
+            Retry
+          </Button>
+        </div>
+      )}
 
       {/* Plan text — research questions rendered inline */}
       {planText && (

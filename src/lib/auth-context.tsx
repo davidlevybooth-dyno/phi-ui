@@ -5,6 +5,7 @@ import { useUser, useAuth as useClerkAuth, useClerk } from "@clerk/nextjs";
 import type { AuthUser } from "@/lib/auth/types";
 import { useSessionStore, useSettingsStore, getStoredCredentials } from "@/lib/stores/auth-store";
 import { configureCredentials } from "@/lib/api/credentials";
+import { ApiError } from "@/lib/api/client";
 import { getAuthMe } from "@/lib/api/auth";
 
 // Wire the credentials seam at module load. Every API call reads live from stores.
@@ -66,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (me.org_id) setOrgId(me.org_id);
         setUserId(me.user_id);
       } catch (err) {
-        const status = (err as { status?: number })?.status;
+        const status = err instanceof ApiError ? err.status : undefined;
         if (status === 401) {
           // JWKS mismatch — backend config issue. Stop polling to avoid log spam.
           // The JWT is still stored so other endpoints (with fallback auth) work.
