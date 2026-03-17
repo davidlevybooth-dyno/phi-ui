@@ -87,19 +87,11 @@ const THRESHOLDS = [
 const FAQ = [
   {
     q: "What is confidence calibration and why does it matter?",
-    a: "Confidence calibration means understanding how well computational scores predict real-world binding affinity and specificity. Without calibration, developers don't know which AI-generated designs are worth testing. Psi-Phi uses experimentally grounded thresholds derived from internal benchmarking to provide this confidence.",
+    a: "Confidence calibration means understanding how well computational scores predict real-world binding affinity and specificity. Without calibration, developers don't know which AI-generated designs are worth testing. Dyno Phi uses experimentally grounded thresholds derived from internal benchmarking to provide this confidence.",
   },
   {
-    q: "What's the recommended workflow for a new binder campaign?",
-    a: "Start with ProteinMPNN for sequence design, run ESMFold for rapid pLDDT screening, then validate top candidates with AlphaFold2 multimer. Use AF2Rank for final ranking. This pipeline is automated through the agentic interface.",
-  },
-  {
-    q: "How do I upload my sequences or structures?",
-    a: "You can use the drag-and-drop upload interface in the dashboard to upload FASTA or PDB files. Files are stored securely in GCS and referenced by URI in job submissions. Alternatively, pass a pre-existing GCS URI directly in the job params.",
-  },
-  {
-    q: "How do I integrate Psi-Phi with my coding agent?",
-    a: "Download the Phi Skill from the Skills tab and place it in your project's skills directory. Set your API key as the DYNO_API_KEY environment variable. The skill instructs your coding agent (e.g. Claude Code, Cursor) how to call scoring, filtering, and workflow APIs.",
+    q: "What do the filter presets mean?",
+    a: "The default preset applies thresholds derived from Dyno's internal benchmarking: ESMFold pLDDT ≥ 0.80, AF2 pTM ≥ 0.55, AF2 ipTM ≥ 0.50, iPAE ≤ 10.85 Å, and backbone RMSD ≤ 3.5 Å. The relaxed preset loosens pTM and iPAE/RMSD bounds for novel de novo designs that lack natural homologs. You can override any individual threshold alongside a preset.",
   },
 ];
 
@@ -108,9 +100,9 @@ const FAQ = [
 // ---------------------------------------------------------------------------
 
 export const OVERVIEW_COPY_TEXT = [
-  "# Dyno Phi — Scoring Pipeline & Metric Reference",
+  "# Dyno Phi — Filtering Pipeline & Metric Reference",
   "",
-  "## Default Scoring Pipeline",
+  "## Filtering Pipeline",
   "",
   ...PIPELINE_STAGES.map(
     (s) => `### ${s.step}. ${s.name}\nTool: ${s.tool}\nMetrics: ${s.metric}\n${s.description}`
@@ -144,7 +136,7 @@ export function DocsTab() {
     >
       {/* Pipeline */}
       <div>
-        <h2 className="text-lg font-semibold mb-4">Default Scoring Pipeline</h2>
+        <h2 className="text-lg font-semibold mb-4">Filtering Pipeline</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {PIPELINE_STAGES.map((stage) => (
             <Card key={stage.step} className="p-4 space-y-2">

@@ -118,11 +118,8 @@ phi use              Set active dataset ID
 phi datasets         List your datasets
 phi dataset          Show details for a single dataset
 phi ingest-session   Check status of an ingest session
-phi design           Backbone generation — binder design, de novo, motif scaffolding (alias: rfdiffusion3)
-phi boltzgen         All-atom generative design from a YAML spec
 phi folding          Fast single-sequence structure prediction — ESMFold (alias: esmfold)
 phi complex_folding  Monomer or multimer structure prediction — AlphaFold2 (alias: alphafold)
-phi openfold3        Biomolecular complex prediction — proteins, DNA, RNA, ligands
 phi inverse_folding  Sequence design via inverse folding — ProteinMPNN (alias: proteinmpnn)
 phi esm2             Language model log-likelihood scoring and perplexity
 phi boltz            Biomolecular complex prediction — proteins, DNA, RNA (Boltz-1)
@@ -135,6 +132,7 @@ phi scores           Display scoring metrics table for a completed filter job
 phi download         Download output files for a completed job
 phi research         Run a biological research query with citations
 phi notes            View accumulated research notes for a dataset
+phi tutorial         Download example datasets and print a getting-started guide
 
 ## Detailed reference
 
@@ -153,22 +151,6 @@ phi upload [FILE ...] [--dir DIR] [--file-type TYPE] [--wait|--no-wait]
 \`\`\`
   phi upload --dir ./designs/ --file-type pdb
 
-### phi design (rfdiffusion3)
-\`\`\`
-phi design [--target-pdb FILE | --target-pdb-gcs URI | --length N | --motif-pdb FILE]
-           [--hotspots A45,A67] [--num-designs N] [--steps N]
-           [--symmetry C3] [--wait] [--out DIR]
-\`\`\`
-  phi design --target-pdb target.pdb --hotspots A45,A67 --num-designs 50
-  phi design --length 80 --num-designs 20
-
-### phi boltzgen
-\`\`\`
-phi boltzgen (--yaml FILE | --yaml-gcs URI) [--protocol PROTOCOL]
-             [--num-designs N] [--budget N] [--wait] [--out DIR]
-\`\`\`
-  phi boltzgen --yaml design.yaml --protocol protein-anything --num-designs 10000
-
 ### phi folding (esmfold)
 \`\`\`
 phi folding (--fasta FILE | --fasta-str FASTA | --dataset-id ID)
@@ -183,14 +165,6 @@ phi complex_folding (--fasta FILE | --fasta-str FASTA | --dataset-id ID)
 \`\`\`
 Separate chains with : for multimer (e.g. >binder:target)
   phi complex_folding --fasta binder_target.fasta --wait
-
-### phi openfold3
-\`\`\`
-phi openfold3 (--fasta FILE | --fasta-str FASTA | --dataset-id ID)
-              [--dna SEQUENCE] [--rna SEQUENCE]
-              [--output-format pdb|mmcif] [--recycles N] [--wait] [--out DIR]
-\`\`\`
-  phi openfold3 --fasta protein.fasta --dna "AGGAACACGTGACCC" --wait --out ./of3_results/
 
 ### phi inverse_folding (proteinmpnn)
 \`\`\`
@@ -234,6 +208,12 @@ phi research --question QUESTION [--target TARGET] [--databases LIST]
 \`\`\`
   phi research --question "What are PD-L1 binding hotspots?" --target PD-L1 --structures
 
+### phi tutorial
+\`\`\`
+phi tutorial
+\`\`\`
+Downloads example datasets and prints an interactive getting-started guide.
+
 ## Filter presets
 Metric       default    relaxed    Description
 pLDDT        ≥ 0.80     ≥ 0.80     ESMFold per-residue confidence (0–1)
@@ -247,26 +227,11 @@ Override any threshold alongside a preset:
 
 ## Workflows
 
-### Full binder design pipeline
+### Filter a batch of binder candidates
 \`\`\`
-phi fetch --pdb 4ZQK --chain A --residues 56-290 --out target.pdb
-phi design --target-pdb target.pdb --hotspots A45,A67 --num-designs 50
-phi upload --dir ./rfdiffusion_outputs/ --file-type pdb
+phi upload --dir ./designs/ --file-type pdb
 phi filter --preset default --wait --out ./results/
 phi scores --top 30
-\`\`\`
-
-### BoltzGen binder design
-\`\`\`
-phi fetch --uniprot Q9NZQ7 --trim-low-confidence 70 --upload
-phi boltzgen --yaml design.yaml --protocol protein-anything --num-designs 10000
-phi download --out ./boltzgen_results/
-\`\`\`
-
-### OpenFold3 protein–DNA complex
-\`\`\`
-phi fetch --pdb 5GNJ --chain A --out tf.pdb
-phi openfold3 --fasta tf_sequence.fasta --dna "AGGAACACGTGACCC" --wait --out ./of3_results/
 \`\`\`
 
 ### Validate a batch of sequences
@@ -277,7 +242,7 @@ phi esm2 --dataset-id <id> --wait
 phi download --out ./validation/
 \`\`\`
 
-### Research-guided campaign
+### Research-guided filtering campaign
 \`\`\`
 phi research --question "What are the binding hotspots of PD-L1?" \\
   --target PD-L1 --structures --dataset-id <id>
@@ -301,9 +266,9 @@ export function CliReference() {
       <div className="mb-6">
         <h1 className="text-xl font-semibold mb-1">Phi CLI Reference</h1>
         <P>
-          <strong>phi</strong> is the command-line interface for the Dyno protein design platform.
-          Submit and monitor computational biology jobs, manage datasets, run structure prediction
-          and inverse-folding pipelines, and download results — all from your terminal.
+          <strong>phi</strong> is the command-line interface for the Dyno Phi filtering platform.
+          Upload binder candidate datasets, run the scoring and filtering pipeline, manage jobs,
+          and download results — all from your terminal.
         </P>
         <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
           <span><strong>Version:</strong> 0.1.0</span>
@@ -372,11 +337,8 @@ export function CliReference() {
           ["phi datasets", "—", "List your datasets"],
           ["phi dataset", "—", "Show details for a single dataset"],
           ["phi ingest-session", "—", "Check the status of an ingest session"],
-          ["phi design", "rfdiffusion3", "Backbone generation — binder design, de novo, motif scaffolding"],
-          ["phi boltzgen", "—", "All-atom generative design from a YAML spec"],
           ["phi folding", "esmfold", "Fast single-sequence structure prediction (ESMFold)"],
           ["phi complex_folding", "alphafold", "Monomer or multimer structure prediction (AlphaFold2)"],
-          ["phi openfold3", "—", "Biomolecular complex prediction — proteins, DNA, RNA, ligands (OpenFold3)"],
           ["phi inverse_folding", "proteinmpnn", "Sequence design via inverse folding (ProteinMPNN)"],
           ["phi esm2", "—", "Language model log-likelihood scoring and perplexity"],
           ["phi boltz", "—", "Biomolecular complex prediction — proteins, DNA, RNA (Boltz-1)"],
@@ -389,6 +351,7 @@ export function CliReference() {
           ["phi download", "—", "Download output files for a completed job"],
           ["phi research", "—", "Run a biological research query with citations"],
           ["phi notes", "—", "View accumulated research notes for a dataset"],
+          ["phi tutorial", "—", "Download example datasets and print a getting-started guide"],
         ]}
       />
 
@@ -469,58 +432,6 @@ export function CliReference() {
       <P>Check the status of a background ingest session (useful after <Code>phi upload --no-wait</Code>).</P>
       <Snippet code={`phi ingest-session SESSION_ID [--json]`} />
 
-      {/* phi design */}
-      <H3 id="phi-design">phi design / rfdiffusion3</H3>
-      <P>Generate protein backbones using RFDiffusion3. Supports binder design, de novo generation, and motif scaffolding. Runtime: ~2–5 min per design.</P>
-      <Snippet code={`phi design [mode options] [binder options] [generation options] [job options]`} />
-      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Design mode</p>
-      <OptionTable
-        cols={["Flag", "Description"]}
-        rows={[
-          ["--target-pdb FILE", "Target PDB for binder design"],
-          ["--target-pdb-gcs URI", "Cloud storage URI to target PDB (gs://…)"],
-          ["--length N", "Backbone length for de novo generation (no target)"],
-          ["--motif-pdb FILE", "Motif PDB for scaffolding"],
-        ]}
-      />
-      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Binder options</p>
-      <OptionTable
-        cols={["Flag", "Description"]}
-        rows={[
-          ["--target-chain CHAIN", "Target chain ID (e.g. A)"],
-          ["--hotspots A45,A67", "Comma-separated hotspot residues for interface design"],
-          ["--motif-residues 10-20,45-55", "Comma-separated motif residue ranges"],
-        ]}
-      />
-      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Generation parameters</p>
-      <OptionTable
-        cols={["Flag", "Default", "Description"]}
-        rows={[
-          ["--num-designs N", "10", "Number of backbone designs to generate"],
-          ["--steps N", "50", "Diffusion inference steps — higher improves quality"],
-          ["--contigs STR", "—", "Contig specification string for advanced control"],
-          ["--symmetry C3", "—", "Symmetry specification (e.g. C3, D2, C5)"],
-        ]}
-      />
-      <Snippet code={`phi design --target-pdb target.pdb --hotspots A45,A67 --num-designs 50\nphi design --target-pdb-gcs gs://bucket/target.pdb --hotspots A45,A67 --num-designs 100\nphi design --length 80 --num-designs 20\nphi design --motif-pdb motif.pdb --motif-residues 10-20,45-55 --num-designs 30`} />
-
-      {/* phi boltzgen */}
-      <H3 id="phi-boltzgen">phi boltzgen</H3>
-      <P>All-atom generative binder design using BoltzGen. Takes a YAML design specification. Supports proteins, peptides, antibodies, nanobodies, and small molecule binders. Runtime: ~10–20 min.</P>
-      <Snippet code={`phi boltzgen (--yaml FILE | --yaml-gcs URI) [options]`} />
-      <OptionTable
-        cols={["Flag", "Default", "Description"]}
-        rows={[
-          ["--yaml FILE", "—", "Local YAML design specification file"],
-          ["--yaml-gcs URI", "—", "Cloud storage URI to YAML file (gs://…)"],
-          ["--protocol PROTOCOL", "protein-anything", "Design protocol: protein-anything, peptide-anything, protein-small_molecule, antibody-anything, nanobody-anything, protein-redesign"],
-          ["--num-designs N", "10", "Intermediate designs to generate. Use 10,000–60,000 for production campaigns"],
-          ["--budget N", "num_designs // 10", "Final diversity-optimized design count"],
-          ["--only-inverse-fold", "—", "Run inverse folding on an existing structure YAML — skips backbone design"],
-        ]}
-      />
-      <Snippet code={`phi boltzgen --yaml design.yaml --protocol protein-anything --num-designs 10\nphi boltzgen --yaml peptide.yaml --protocol peptide-anything --num-designs 50\nphi boltzgen --yaml binder.yaml --num-designs 20000 --budget 200\nphi boltzgen --yaml structures.yaml --only-inverse-fold --inverse-fold-num-sequences 4`} />
-
       {/* phi folding */}
       <H3 id="phi-folding">phi folding / esmfold</H3>
       <P>Fast single-sequence structure prediction using ESMFold. Runtime: ~1 min per sequence.</P>
@@ -556,55 +467,6 @@ export function CliReference() {
         ]}
       />
       <Snippet code={`phi complex_folding --fasta binder_target.fasta\nphi complex_folding --fasta monomer.fasta --amber\nphi complex_folding --dataset-id d7c3a1b2-... --wait --out ./af2_results/`} />
-
-      {/* phi openfold3 */}
-      <H3 id="phi-openfold3">phi openfold3</H3>
-      <P>
-        Third-generation biomolecular complex structure prediction using <strong>OpenFold3</strong> (via NVIDIA NIM).
-        Predicts 3D structures of multi-molecule complexes — proteins, DNA, RNA, and small-molecule ligands — in a single
-        unified pass. Particularly strong for protein–nucleic acid complexes and transcription factor interfaces.
-        Runtime: ~3–8 min.
-      </P>
-      <Snippet code={`phi openfold3 (--fasta FILE | --fasta-str FASTA | --dataset-id ID) [options]`} />
-      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Input</p>
-      <OptionTable
-        cols={["Flag", "Description"]}
-        rows={[
-          ["--fasta FILE", "FASTA file with one or more chains. Use chain-type prefixes (see below)"],
-          ["--fasta-str FASTA", "FASTA content as a string"],
-          ["--dataset-id ID", "Pre-ingested dataset ID (batch mode)"],
-          ["--dna SEQUENCE", "Additional DNA strand to include in the complex"],
-          ["--rna SEQUENCE", "Additional RNA strand to include in the complex"],
-        ]}
-      />
-      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Options</p>
-      <OptionTable
-        cols={["Flag", "Default", "Description"]}
-        rows={[
-          ["--output-format FORMAT", "pdb", "Output structure format: pdb or mmcif"],
-          ["--no-msa", "—", "Disable MSA lookup for faster, lower-accuracy prediction"],
-          ["--recycles N", "3", "Recycling iterations"],
-          ["--wait", "on", "Poll until job completes"],
-          ["--out DIR", "—", "Download results to this directory when done"],
-          ["--json", "—", "Output raw JSON"],
-        ]}
-      />
-      <P>
-        OpenFold3 uses a per-molecule input format. When using <Code>--fasta</Code>, protein chains are
-        identified by sequence; add <Code>--dna</Code> or <Code>--rna</Code> flags to include nucleic
-        acid partners. For full multi-molecule JSON control, use the REST API directly.
-      </P>
-      <Snippet code={`# Predict a protein monomer
-phi openfold3 --fasta protein.fasta --wait
-
-# Protein + DNA complex (e.g. transcription factor)
-phi openfold3 --fasta protein.fasta --dna "AGGAACACGTGACCC" --wait --out ./of3_results/
-
-# Protein + RNA complex
-phi openfold3 --fasta protein.fasta --rna "GCGCUAGCGC" --wait
-
-# Batch prediction over a dataset
-phi openfold3 --dataset-id d7c3a1b2-... --wait --out ./of3_batch/`} />
 
       {/* phi inverse_folding */}
       <H3 id="phi-inverse-folding">phi inverse_folding / proteinmpnn</H3>
@@ -761,6 +623,11 @@ phi research \\
       <Snippet code={`phi notes DATASET_ID [--out PATH] [--json]`} />
       <Snippet code={`phi notes d7c3a1b2-... --out ./campaign-notes.md`} />
 
+      {/* phi tutorial */}
+      <H3 id="phi-tutorial">phi tutorial</H3>
+      <P>Download example datasets from the API and print an interactive getting-started guide. Ideal for first-time users to explore the filtering pipeline with real data.</P>
+      <Snippet code={`phi tutorial`} />
+
       <Hr />
 
       {/* Filter presets */}
@@ -790,41 +657,19 @@ phi research \\
       {/* Workflows */}
       <H2 id="workflows">Workflows</H2>
 
-      <H3 id="workflow-binder">Full binder design pipeline</H3>
-      <Snippet code={`# 1. Fetch and prepare target
-phi fetch --pdb 4ZQK --chain A --residues 56-290 --out target.pdb
+      <H3 id="workflow-filter">Filter a batch of binder candidates</H3>
+      <P>The most common workflow — upload your designs and run the full scoring pipeline in one step.</P>
+      <Snippet code={`# 1. Upload your binder candidate PDB or FASTA files
+phi upload --dir ./designs/ --file-type pdb
 
-# 2. Generate backbones
-phi design --target-pdb target.pdb --hotspots A45,A67 --num-designs 50
-
-# 3. Upload backbones for batch validation
-phi upload --dir ./rfdiffusion_outputs/ --file-type pdb
-
-# 4. Run full filter pipeline
+# 2. Run the full filter pipeline (ProteinMPNN → ESMFold → AlphaFold2 → score)
 phi filter --preset default --wait --out ./results/
 
-# 5. Review scores
+# 3. Review ranked scores
 phi scores --top 30`} />
 
-      <H3 id="workflow-boltzgen">BoltzGen binder design</H3>
-      <Snippet code={`# 1. Fetch target and upload to get GCS URI
-phi fetch --uniprot Q9NZQ7 --trim-low-confidence 70 --upload
-
-# 2. Create YAML spec referencing the GCS URI, then run
-phi boltzgen --yaml design.yaml --protocol protein-anything --num-designs 10000
-
-# 3. Download top designs
-phi download --out ./boltzgen_results/`} />
-
-      <H3 id="workflow-of3">OpenFold3 protein–DNA complex</H3>
-      <Snippet code={`# Predict a transcription factor–DNA interface
-phi fetch --pdb 5GNJ --chain A --out tf.pdb
-phi openfold3 \\
-  --fasta tf_sequence.fasta \\
-  --dna "AGGAACACGTGACCC" \\
-  --wait --out ./of3_results/`} />
-
       <H3 id="workflow-validate">Validate a batch of sequences</H3>
+      <P>Run individual pipeline steps when you need custom control — e.g. to reuse existing folded structures.</P>
       <Snippet code={`# Upload FASTA sequences
 phi upload sequences.fasta
 
@@ -837,7 +682,7 @@ phi esm2 --dataset-id d7c3a1b2-... --wait
 # Download results
 phi download --out ./validation/`} />
 
-      <H3 id="workflow-research">Research-guided campaign</H3>
+      <H3 id="workflow-research">Research-guided filtering campaign</H3>
       <Snippet code={`phi research \\
   --question "What are the binding hotspots of PD-L1 for therapeutic binders?" \\
   --target PD-L1 --structures --dataset-id d7c3a1b2-...
