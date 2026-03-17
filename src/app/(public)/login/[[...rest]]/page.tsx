@@ -150,7 +150,6 @@ export default function LoginPage() {
             <SignIn
               forceRedirectUrl="/dashboard"
               signUpForceRedirectUrl="/dashboard"
-              waitlistUrl="/waitlist"
             />
           </motion.div>
         )}

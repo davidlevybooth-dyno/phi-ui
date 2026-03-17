@@ -91,7 +91,7 @@ export default function LandingPage() {
           <div className="flex items-center gap-2">
             <Show when="signed-out">
               <Button asChild variant="ghost" size="sm">
-                <Link href="/waitlist">Sign in</Link>
+                <Link href="/login">Sign in</Link>
               </Button>
             </Show>
             <Show when="signed-in">
