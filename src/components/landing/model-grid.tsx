@@ -51,8 +51,9 @@ function ModelCard({ model }: { model: ModelInfo }) {
 }
 
 export function ModelGrid() {
-  const community = MODELS.filter((m) => m.tier === "community");
-  const exclusive = MODELS.filter((m) => m.tier === "exclusive");
+  const visible = MODELS.filter((m) => !m.hidden);
+  const community = visible.filter((m) => m.tier === "community");
+  const exclusive = visible.filter((m) => m.tier === "exclusive");
 
   return (
     <div className="space-y-10">

@@ -66,6 +66,7 @@ export function FilterPanel({
                 step={f.step}
                 value={[sv]}
                 onValueChange={([v]) => onChange(f.key, v ?? sv)}
+                fillFromRight={f.direction === "min"}
               />
             </div>
           );

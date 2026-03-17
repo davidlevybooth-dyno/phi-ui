@@ -19,7 +19,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Dyno Phi — Protein Design Platform",
+  title: "Dyno Phi",
   description:
     "Agentic scoring and filtering for protein binder design.",
 };

@@ -17,6 +17,8 @@ export type DesignRow = {
   m: string;            // model id
   d: string;            // design_id
   bl: string;           // binder_length
+  name?: string;        // human-readable design name (from parquet)
+  seq?: string;         // binder amino acid sequence (from parquet)
   plddt?: number;
   ptm?: number;
   iptm?: number;
@@ -41,8 +43,8 @@ export const FILTER_DEFS: MetricFilterDef[] = [
   { key: "iptm",        label: "ipTM",        direction: "min", inverted: true,  defaultThreshold: 0.50,  min: 0, max: 1,  step: 0.01, unit: "" },
   { key: "plddt",       label: "AF2 pLDDT",   direction: "min", inverted: true,  defaultThreshold: 0.80,  min: 0, max: 1,  step: 0.01, unit: "" },
   { key: "ptm",         label: "pTM",          direction: "min", inverted: true,  defaultThreshold: 0.55,  min: 0, max: 1,  step: 0.01, unit: "" },
-  { key: "ipae_ang",    label: "iPAE",          direction: "max", inverted: false, defaultThreshold: 10.85, min: 0, max: 31, step: 0.1,  unit: "Å" },
   { key: "ipsae",       label: "ipSAE",         direction: "min", inverted: true,  defaultThreshold: 0.35,  min: 0, max: 1,  step: 0.01, unit: "" },
+  { key: "ipae_ang",    label: "iPAE",          direction: "max", inverted: false, defaultThreshold: 10.85, min: 0, max: 31, step: 0.1,  unit: "Å" },
   { key: "binder_rmsd", label: "Binder RMSD",   direction: "max", inverted: false, defaultThreshold: 3.5,   min: 0, max: 20, step: 0.1,  unit: "Å" },
 ];
 

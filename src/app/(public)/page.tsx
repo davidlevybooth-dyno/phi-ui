@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { ArrowRight, Cpu, FlaskConical, SlidersHorizontal, Wand2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -8,6 +8,7 @@ import { Show, UserButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DynoLogo } from "@/components/shared/dyno-logo";
+import { FEATURES } from "@/lib/config/features";
 import { ModelGrid } from "@/components/landing/model-grid";
 import { SkillsTab } from "@/components/landing/skills-tab";
 import { FilterExplorer } from "@/components/landing/filter-explorer";
@@ -18,7 +19,7 @@ const WORKFLOW_STEPS = [
     icon: Wand2,
     number: "01",
     title: "Design",
-    description: "Generate binder candidates via the agent, the web app, or the REST API.",
+    description: "Upload generative binder candidates via the agent, the web app, or the REST API.",
   },
   {
     icon: Cpu,
@@ -29,16 +30,24 @@ const WORKFLOW_STEPS = [
   {
     icon: SlidersHorizontal,
     number: "03",
-    title: "Calibrate",
-    description: "Shortlist and rank candidates against experimental calibrated filters.",
+    title: "Filter",
+    description: "Shortlist and rank candidates against experimentally calibrated filters.",
   },
   {
     icon: FlaskConical,
     number: "04",
     title: "Advance",
-    description: "Move shortlisted designs to the synthesis queue, share with collaborators, or hand off to the wet lab.",
+    description: "Move shortlisted designs to synthesis, hand off to the wet lab, or share with collaborators.",
   },
 ];
+
+const TABS = ["skills", "docs", "models", "filters"] as const;
+type TabId = (typeof TABS)[number];
+
+function hashToTab(hash: string): TabId {
+  const slug = hash.replace(/^#/, "");
+  return (TABS as readonly string[]).includes(slug) ? (slug as TabId) : "skills";
+}
 
 const fadeUp = (delay: number) => ({
   initial: { opacity: 0, y: 16 },
@@ -47,7 +56,28 @@ const fadeUp = (delay: number) => ({
 });
 
 export default function LandingPage() {
-  const [activeTab, setActiveTab] = useState("skills");
+  // Start with "skills" to match the server render — hash is read client-side in useEffect.
+  const [activeTab, setActiveTab] = useState<TabId>("skills");
+  const tabSectionRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    // Set initial tab from URL hash on first client render.
+    const initial = hashToTab(window.location.hash);
+    if (initial !== "skills") setActiveTab(initial);
+
+    function onHashChange() {
+      setActiveTab(hashToTab(window.location.hash));
+      // Scroll the tab section into view when navigating via a direct hash link.
+      tabSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+
+  function handleTabChange(tab: string) {
+    setActiveTab(tab as TabId);
+    window.history.pushState(null, "", "#" + tab);
+  }
 
   return (
     <div className="flex-1 flex flex-col bg-background">
@@ -80,7 +110,7 @@ export default function LandingPage() {
           {...fadeUp(0)}
           className="text-4xl font-semibold tracking-tight sm:text-5xl leading-tight mb-4"
         >
-          Calibrate and rank
+          Filter and rank
           <br />
           your protein designs.
         </motion.h1>
@@ -89,7 +119,7 @@ export default function LandingPage() {
           {...fadeUp(0.12)}
           className="max-w-lg mx-auto text-muted-foreground text-base leading-relaxed mb-8"
         >
-          Skills for agentic calibration and advancement of AI-generated protein designs. Without managing infrastructure.
+          Agentic skills for calibration and advancement of AI-generated protein designs, without managing infrastructure.
         </motion.p>
 
         <motion.div
@@ -103,17 +133,21 @@ export default function LandingPage() {
                 <ArrowRight className="ml-1.5 size-3.5" />
               </Link>
             </Button>
-            <Button asChild variant="outline" className="rounded-full px-6">
-              <Link href="/agent">Agent</Link>
-            </Button>
+            {FEATURES.dashboardAgent && (
+              <Button asChild variant="outline" className="rounded-full px-6">
+                <Link href="/agent">Agent</Link>
+              </Button>
+            )}
           </Show>
           <Show when="signed-in">
             <Button asChild className="rounded-full px-6">
               <Link href="/dashboard">Dashboard</Link>
             </Button>
-            <Button asChild variant="outline" className="rounded-full px-6">
-              <Link href="/agent">Agent</Link>
-            </Button>
+            {FEATURES.dashboardAgent && (
+              <Button asChild variant="outline" className="rounded-full px-6">
+                <Link href="/agent">Agent</Link>
+              </Button>
+            )}
           </Show>
         </motion.div>
       </section>
@@ -139,10 +173,12 @@ export default function LandingPage() {
 
       {/* Tabbed section */}
       <motion.section
+        ref={tabSectionRef}
+        id="explore"
         {...fadeUp(0.48)}
-        className="mx-auto max-w-6xl w-full px-6 pb-16"
+        className="mx-auto max-w-6xl w-full px-6 pb-16 scroll-mt-16"
       >
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="mb-8 mx-auto flex w-full max-w-md">
             <TabsTrigger value="skills" className="flex-1">Skills</TabsTrigger>
             <TabsTrigger value="docs" className="flex-1">Docs</TabsTrigger>

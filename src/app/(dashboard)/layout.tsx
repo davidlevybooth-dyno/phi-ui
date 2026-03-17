@@ -22,7 +22,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="flex items-center gap-2">
             <SidebarTrigger className="-ml-1" />
           </div>
-          <UserButton />
+          <UserButton userProfileUrl="/dashboard/settings" userProfileMode="navigation" />
         </header>
         <AnimatePresence mode="wait">
           <motion.main

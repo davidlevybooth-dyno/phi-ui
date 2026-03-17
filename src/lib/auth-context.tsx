@@ -1,12 +1,13 @@
 "use client";
 
-import { createContext, useContext, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, type ReactNode } from "react";
 import { useUser, useAuth as useClerkAuth, useClerk } from "@clerk/nextjs";
 import type { AuthUser } from "@/lib/auth/types";
 import { useSessionStore, useSettingsStore, getStoredCredentials } from "@/lib/stores/auth-store";
 import { configureCredentials } from "@/lib/api/credentials";
 import { ApiError } from "@/lib/api/client";
 import { getAuthMe } from "@/lib/api/auth";
+import { TOS_KEY, CONTACT_OPT_IN_KEY } from "@/lib/auth/constants";
 
 // Wire the credentials seam at module load. Every API call reads live from stores.
 configureCredentials(getStoredCredentials);
@@ -37,6 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { signOut: clerkSignOut } = useClerk();
   const { setApiKey } = useSessionStore();
   const { setUserId, setOrgId } = useSettingsStore();
+  const hasSyncedOptIn = useRef(false);
 
   useEffect(() => {
     if (!isSignedIn || !clerkUser) {
@@ -62,6 +64,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const refresh = async () => {
       const token = await getToken();
       setApiKey(token);
+
+      // On the first sign-in of this session, sync ToS acceptance and contact
+      // opt-in from localStorage to Clerk privateMetadata so Dyno staff can
+      // audit preferences in the Clerk dashboard.
+      if (!hasSyncedOptIn.current) {
+        hasSyncedOptIn.current = true;
+        fetch("/api/user/preferences", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tosAccepted: localStorage.getItem(TOS_KEY) === "true",
+            contactOptIn: localStorage.getItem(CONTACT_OPT_IN_KEY) === "true",
+          }),
+        }).catch(() => {
+          // Non-critical — preferences can be re-synced on the next sign-in.
+        });
+      }
+
       try {
         const me = await getAuthMe();
         if (me.org_id) setOrgId(me.org_id);

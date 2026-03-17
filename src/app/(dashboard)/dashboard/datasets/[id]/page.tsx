@@ -1,12 +1,12 @@
 "use client";
 
-import { use, useState, useEffect } from "react";
+import { use, useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { format } from "date-fns";
-import { ArrowLeft, FileText, Save, ChevronLeft, ChevronRight, BarChart3 } from "lucide-react";
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, BarChart3, Copy, FileText, Pencil, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -15,13 +15,121 @@ import {
   getDatasetScores,
   getDatasetResearchNotes,
   postDatasetResearchNotes,
+  updateDataset,
 } from "@/lib/api/upload";
 import { listJobs } from "@/lib/api/jobs";
 import { getJobTypeDisplayLabel, getDatasetIdFromJob } from "@/lib/schemas/job";
 import type { Job } from "@/lib/schemas/job";
-import type { DatasetJobEntry } from "@/lib/schemas/upload";
+import type { Dataset, DatasetFile, DatasetJobEntry } from "@/lib/schemas/upload";
 import { useAuth } from "@/lib/auth-context";
+import { safeFormat } from "@/lib/utils/date";
 import { toast } from "sonner";
+
+/** Derive a human-readable summary of file types from the dataset's file list. */
+function summarizeFileTypes(files: DatasetFile[]): string {
+  if (files.length === 0) return "";
+  const counts: Record<string, number> = {};
+  for (const f of files) {
+    const ext = f.filename.split(".").pop()?.toUpperCase() ?? "OTHER";
+    counts[ext] = (counts[ext] ?? 0) + 1;
+  }
+  return Object.entries(counts)
+    .sort(([, a], [, b]) => b - a)
+    .map(([ext, n]) => `${n} ${ext}`)
+    .join(", ");
+}
+
+/** Compact copyable ID badge with icon feedback. */
+function CopyIdButton({ id }: { id: string }) {
+  const [copied, setCopied] = useState(false);
+  function handleCopy() {
+    navigator.clipboard.writeText(id).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+  return (
+    <button
+      onClick={handleCopy}
+      className="group inline-flex items-center gap-1.5 font-mono text-xs text-muted-foreground rounded hover:text-foreground transition-colors"
+      title="Copy dataset ID"
+    >
+      <span>{id}</span>
+      {copied
+        ? <Check className="size-3 text-green-600 shrink-0" />
+        : <Copy className="size-3 opacity-40 group-hover:opacity-100 transition-opacity shrink-0" />}
+    </button>
+  );
+}
+
+/** Inline editable name — shows as text, becomes an Input on click. */
+function EditableName({
+  value,
+  placeholder,
+  onSave,
+  saving,
+}: {
+  value: string;
+  placeholder: string;
+  onSave: (name: string) => void;
+  saving: boolean;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing) inputRef.current?.select();
+  }, [editing]);
+
+  // Keep draft in sync when the external value changes (e.g. after save)
+  useEffect(() => {
+    if (!editing) setDraft(value);
+  }, [value, editing]);
+
+  const commit = useCallback(() => {
+    const trimmed = draft.trim();
+    setEditing(false);
+    if (trimmed && trimmed !== value) onSave(trimmed);
+  }, [draft, value, onSave]);
+
+  const cancel = useCallback(() => {
+    setDraft(value);
+    setEditing(false);
+  }, [value]);
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-2">
+        <Input
+          ref={inputRef}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commit();
+            if (e.key === "Escape") cancel();
+          }}
+          className="text-xl font-semibold h-9 max-w-sm"
+          disabled={saving}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => setEditing(true)}
+      className="group flex items-center gap-2 text-left"
+      title="Click to rename"
+    >
+      <h1 className="text-xl font-semibold">
+        {value || <span className="text-muted-foreground italic font-normal">{placeholder}</span>}
+      </h1>
+      <Pencil className="size-3.5 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
+    </button>
+  );
+}
 
 export default function DatasetDetailPage({
   params,
@@ -62,15 +170,13 @@ export default function DatasetDetailPage({
   const {
     data: datasetJobsResponse,
     isLoading: loadingDatasetJobs,
-    isError: datasetJobsError,
   } = useQuery({
     queryKey: ["dataset-jobs", id],
     queryFn: () => getDatasetJobs(id),
     enabled: authReady && !!id,
   });
 
-  // Only attempt the fallback scan when the dedicated endpoint returns 0 jobs.
-  // Avoids a redundant O(all jobs) request when the new endpoint works correctly.
+  // Fallback scan when the dedicated endpoint returns 0 jobs.
   const primaryJobsSettled = !loadingDatasetJobs;
   const primaryJobsEmpty = (datasetJobsResponse?.jobs ?? []).length === 0;
   const { data: fallbackJobsResponse, isLoading: loadingFallbackJobs } = useQuery({
@@ -117,6 +223,16 @@ export default function DatasetDetailPage({
     onError: () => toast.error("Failed to save notes"),
   });
 
+  const renameDatasetMutation = useMutation({
+    mutationFn: (name: string) => updateDataset(id, { name }),
+    onSuccess: (updated: Dataset) => {
+      queryClient.setQueryData(["dataset", id], updated);
+      queryClient.invalidateQueries({ queryKey: ["datasets"] });
+      toast.success("Dataset renamed");
+    },
+    onError: () => toast.error("Failed to rename dataset — the API may not support this yet"),
+  });
+
   const displayNotes = notesDraft !== null ? notesDraft : notes?.content ?? "";
   const filesTotal = files.length;
   const filesTotalPages = Math.max(1, Math.ceil(filesTotal / FILES_PAGE_SIZE));
@@ -124,6 +240,7 @@ export default function DatasetDetailPage({
   const filesEnd = Math.min(filesPage * FILES_PAGE_SIZE, filesTotal);
   const filesPageItems = files.slice(filesStart - 1, filesEnd);
 
+  const fileTypeSummary = summarizeFileTypes(files);
   const datasetErrorMessage =
     datasetErr instanceof Error ? datasetErr.message : "Failed to load dataset.";
 
@@ -145,14 +262,24 @@ export default function DatasetDetailPage({
             <p className="text-xs text-muted-foreground mt-1">{datasetErrorMessage}</p>
           </Card>
         ) : dataset ? (
-          <h1 className="text-xl font-semibold">
-            {dataset.name ?? dataset.dataset_id ?? id}
-          </h1>
+          <>
+            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-0.5">Name</p>
+            <EditableName
+              value={dataset.name ?? ""}
+              placeholder={dataset.dataset_id ?? id}
+              onSave={(name) => renameDatasetMutation.mutate(name)}
+              saving={renameDatasetMutation.isPending}
+            />
+          </>
         ) : null}
         {dataset && !datasetError && (
-          <p className="text-xs text-muted-foreground mt-1 font-mono">
-            {dataset.dataset_id}
-          </p>
+          <div className="flex items-center gap-2 mt-2 flex-wrap">
+            <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">ID</span>
+            <CopyIdButton id={dataset.dataset_id} />
+            {fileTypeSummary && (
+              <span className="text-xs text-muted-foreground">· {fileTypeSummary}</span>
+            )}
+          </div>
         )}
       </div>
 
@@ -163,7 +290,7 @@ export default function DatasetDetailPage({
             <dt className="text-muted-foreground">Status</dt>
             <dd>{dataset.status}</dd>
             <dt className="text-muted-foreground">Created</dt>
-            <dd>{format(new Date(dataset.created_at), "PPp")}</dd>
+            <dd>{safeFormat(dataset.created_at, "PPp")}</dd>
             {dataset.artifact_count != null && (
               <>
                 <dt className="text-muted-foreground">Files</dt>
@@ -241,7 +368,7 @@ export default function DatasetDetailPage({
                 {datasetScores.completed_at && (
                   <div className="text-center">
                     <p className="text-xs font-medium leading-none">
-                      {format(new Date(datasetScores.completed_at), "MMM d, HH:mm")}
+                      {safeFormat(datasetScores.completed_at, "MMM d, HH:mm")}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">last scored</p>
                   </div>
@@ -338,31 +465,15 @@ export default function DatasetDetailPage({
                     </p>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {job.job_id.slice(0, 12)}… · {job.status} ·{" "}
-                      {format(new Date(job.created_at), "MMM d, HH:mm")}
+                      {safeFormat(job.created_at, "MMM d, HH:mm")}
                     </p>
                   </div>
-                  <div className="flex gap-2">
-                    {"run_id" in job && job.run_id && (
-                      <Link
-                        href={`/dashboard/results/${job.run_id}`}
-                        className="text-xs text-primary hover:underline"
-                      >
-                        View results
-                      </Link>
-                    )}
-                    <Link
-                      href={`/dashboard/datasets/${id}/scores`}
-                      className="text-xs text-primary hover:underline"
-                    >
-                      View scores
-                    </Link>
-                    <Link
-                      href={`/dashboard/jobs/${job.job_id}`}
-                      className="text-xs text-primary hover:underline"
-                    >
-                      Job detail
-                    </Link>
-                  </div>
+                  <Link
+                    href={`/dashboard/datasets/${id}/scores`}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    View scores
+                  </Link>
                 </div>
               </Card>
             ))}

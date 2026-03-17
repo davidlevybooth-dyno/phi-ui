@@ -110,6 +110,12 @@ export interface ModelInfo {
    * Undefined → no structure output tab.
    */
   outputColorMode?: "plddt" | "chain";
+  /**
+   * When true, the model is omitted from the Models grid on the landing page.
+   * Individual model detail pages remain accessible via direct URL.
+   * Set to false (or omit) to show the model.
+   */
+  hidden?: boolean;
 }
 
 const BASE_URL = "https://api.dyno-agents.app/v1/phi";
@@ -1032,6 +1038,7 @@ phi download JOB_ID --out ./af2rank_results
     citation: "Lin et al., Science, 2023",
     license: "MIT",
     tier: "community",
+    hidden: true,
     tagline: "Protein language model — sequence plausibility",
     description:
       "Protein language model scoring. Computes evolutionary likelihood scores to identify implausible or out-of-distribution sequences before structural validation.",
@@ -1140,6 +1147,7 @@ phi download JOB_ID --out ./esm2_results
     citation: "Watson et al., Nature, 2023",
     license: "BSD-3-Clause",
     tier: "community",
+    hidden: true,
     hasInteractiveExperience: false,
     tagline: "Residue-level diffusion for de novo protein design",
     description:
@@ -1215,6 +1223,7 @@ print(resp.json()["job_id"])`,
     citation: "Institute for Protein Design / Rosetta Commons, 2025",
     license: "BSD-3-Clause",
     tier: "community",
+    hidden: true,
     hasInteractiveExperience: false,
     tagline: "Atom-level de novo protein backbone generation",
     description:
@@ -1290,6 +1299,7 @@ print(resp.json()["job_id"])`,
     citation: "Recursion / MIT Jameel Clinic, 2024",
     license: "MIT",
     tier: "community",
+    hidden: true,
     hasInteractiveExperience: false,
     tagline: "All-atom diffusion for protein and peptide design",
     description:
@@ -1365,6 +1375,7 @@ print(resp.json()["job_id"])`,
     citation: "OpenFold Consortium / NVIDIA, 2024",
     license: "Apache 2.0",
     tier: "community",
+    hidden: true,
     hasInteractiveExperience: false,
     tagline: "Third-generation biomolecular complex structure prediction",
     description:

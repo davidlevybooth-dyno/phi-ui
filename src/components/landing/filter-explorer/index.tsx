@@ -1,8 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Check, Copy } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import {
   DesignRow,
@@ -24,6 +29,90 @@ import {
 import { FilterPanel } from "./FilterPanel";
 import { MetricHistogram } from "./MetricHistogram";
 import { PassRateChart } from "./PassRateChart";
+
+/** Copy-to-clipboard hook used inside popovers. */
+function useCopy(text: string) {
+  const [copied, setCopied] = useState(false);
+  function copy() {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+  return { copied, copy };
+}
+
+/**
+ * Table cell for the Seq column.
+ * Shows a truncated amino acid sequence (or design ID if no seq yet);
+ * clicking opens a popover with the full name, design ID, and copyable sequence.
+ */
+function DesignCell({ row }: { row: import("./constants").DesignRow }) {
+  const hasSeq = !!row.seq;
+  const preview = hasSeq
+    ? row.seq!.slice(0, 14) + "…"
+    : (row.d.length > 16 ? row.d.slice(0, 14) + "…" : row.d);
+  const { copied, copy } = useCopy(row.seq ?? row.d);
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          className="font-mono text-xs text-left hover:text-foreground text-muted-foreground transition-colors"
+          title={hasSeq ? row.seq : row.d}
+        >
+          {preview}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        side="right"
+        align="start"
+        className="w-80 p-3 space-y-2.5 text-xs"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Name */}
+        {row.name && (
+          <div className="space-y-0.5">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Name</p>
+            <p className="font-medium break-all">{row.name}</p>
+          </div>
+        )}
+        {/* Design ID */}
+        <div className="space-y-0.5">
+          <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Design ID</p>
+          <p className="font-mono break-all text-muted-foreground">{row.d}</p>
+        </div>
+        {/* Sequence */}
+        {hasSeq ? (
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                Sequence <span className="normal-case">({row.seq!.length} aa)</span>
+              </p>
+              <button
+                onClick={copy}
+                className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {copied ? (
+                  <><Check className="size-3 text-green-600" /> Copied</>
+                ) : (
+                  <><Copy className="size-3" /> Copy</>
+                )}
+              </button>
+            </div>
+            <p className="font-mono text-[11px] break-all bg-muted/60 rounded p-2 leading-relaxed select-all">
+              {row.seq}
+            </p>
+          </div>
+        ) : (
+          <p className="text-[10px] text-muted-foreground italic">
+            Sequence not yet available — run the enrichment script to add sequences from the parquet files.
+          </p>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 function MetricTd({
   value,
@@ -315,6 +404,7 @@ export function FilterExplorer() {
               <tr className="border-b bg-muted/30">
                 <th className="text-left px-3 py-2 font-medium text-muted-foreground w-24">Target</th>
                 <th className="text-left px-3 py-2 font-medium text-muted-foreground w-28">Model</th>
+                <th className="text-left px-3 py-2 font-medium text-muted-foreground w-36">Seq</th>
                 <th className="text-right px-3 py-2 font-medium text-muted-foreground">ipTM</th>
                 <th className="text-right px-3 py-2 font-medium text-muted-foreground">pLDDT</th>
                 <th className="text-right px-3 py-2 font-medium text-muted-foreground">pTM</th>
@@ -339,6 +429,9 @@ export function FilterExplorer() {
                       />
                       {MODEL_LABELS[row.m] ?? row.m}
                     </span>
+                  </td>
+                  <td className="px-3 py-1.5">
+                    <DesignCell row={row} />
                   </td>
                   <MetricTd value={row.iptm}        filterKey="iptm"        sliderValues={sliderValues} />
                   <MetricTd value={row.plddt}       filterKey="plddt"       sliderValues={sliderValues} />

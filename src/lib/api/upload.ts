@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from "./client";
+import { apiGet, apiPost, apiPatch } from "./client";
 import {
   DatasetJobsResponseSchema,
   DatasetListResponseSchema,
@@ -11,6 +11,7 @@ import {
   type DatasetResearchNotesResponse,
   type DatasetScoresResponse,
   type IngestSession,
+  type UpdateDatasetRequest,
   type UploadUrlRequest,
   type UploadUrlResponse,
 } from "@/lib/schemas/upload";
@@ -89,6 +90,22 @@ export function listDatasets(params?: {
   return apiGet<unknown>("/v1/phi/datasets/", params).then((data) =>
     DatasetListResponseSchema.parse(data)
   );
+}
+
+/**
+ * Update mutable dataset fields (name).
+ * Calls PATCH /v1/phi/datasets/{id}. If the backend does not yet support this
+ * endpoint it will return 404/405 and the caller should handle gracefully.
+ * TODO: confirm PATCH /v1/phi/datasets/{id} is deployed on the backend.
+ */
+export function updateDataset(
+  datasetId: string,
+  body: UpdateDatasetRequest
+): Promise<Dataset> {
+  return apiPatch<unknown>(
+    `/v1/phi/datasets/${encodeURIComponent(datasetId)}`,
+    body
+  ).then((data) => DatasetSchema.parse(data));
 }
 
 export function getDataset(datasetId: string): Promise<Dataset> {

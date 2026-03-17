@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, MessageSquare, Briefcase, Database, Settings, History } from "lucide-react";
+import { LayoutDashboard, MessageSquare, Settings, History } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -14,15 +14,16 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { DynoLogo } from "@/components/shared/dyno-logo";
+import { FEATURES } from "@/lib/config/features";
 
-const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/dashboard/agent", label: "Agent", icon: MessageSquare },
-  { href: "/dashboard/chats", label: "Chats", icon: History },
-  { href: "/dashboard/datasets", label: "Datasets", icon: Database },
-  { href: "/dashboard/jobs", label: "Jobs", icon: Briefcase },
-  { href: "/dashboard/settings", label: "Settings", icon: Settings },
+const allNavItems = [
+  { href: "/dashboard/datasets", label: "Dashboard", icon: LayoutDashboard, flag: true },
+  { href: "/dashboard/agent", label: "Agent", icon: MessageSquare, flag: FEATURES.dashboardAgent },
+  { href: "/dashboard/chats", label: "Chats", icon: History, flag: FEATURES.dashboardAgent },
+  { href: "/dashboard/settings", label: "Settings", icon: Settings, flag: true },
 ];
+
+const navItems = allNavItems.filter((item) => item.flag);
 
 export function AppSidebar() {
   const pathname = usePathname();

@@ -156,12 +156,22 @@ export const JobScoresResponseSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
+// Dataset update (PATCH /v1/phi/datasets/{id})
+// ---------------------------------------------------------------------------
+
+export const UpdateDatasetRequestSchema = z.object({
+  name: z.string().min(1).max(200).optional(),
+});
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
+export type UpdateDatasetRequest = z.infer<typeof UpdateDatasetRequestSchema>;
 export type UploadUrlRequest = z.infer<typeof UploadUrlRequestSchema>;
 export type UploadUrlResponse = z.infer<typeof UploadUrlResponseSchema>;
 export type IngestSession = z.infer<typeof IngestSessionSchema>;
+export type DatasetFile = z.infer<typeof DatasetFileSchema>;
 export type Dataset = z.infer<typeof DatasetSchema>;
 export type DatasetListResponse = z.infer<typeof DatasetListResponseSchema>;
 export type DatasetResearchNotesResponse = z.infer<typeof DatasetResearchNotesResponseSchema>;

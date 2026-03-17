@@ -86,7 +86,7 @@ function Hr() {
 // ---------------------------------------------------------------------------
 
 export const CLI_COPY_TEXT = `# Phi CLI Reference
-Version: 0.1.0 · Package: dyno-phi · Requires: Python ≥ 3.11
+Version: 0.1.0 · Package: dyno-phi · Requires: Python ≥ 3.9
 
 ## Installation & authentication
 \`\`\`
@@ -310,7 +310,7 @@ export function CliReference() {
           <span>·</span>
           <span><strong>Package:</strong> <Code>dyno-phi</Code></span>
           <span>·</span>
-          <span><strong>Requires:</strong> Python ≥ 3.11</span>
+          <span><strong>Requires:</strong> Python ≥ 3.9</span>
           <span>·</span>
           <a
             href="https://github.com/dynotx/phi-cli"
@@ -327,8 +327,6 @@ export function CliReference() {
       {/* Installation */}
       <H2 id="installation">Installation &amp; authentication</H2>
       <Snippet code={`pip install dyno-phi\n# or with uv:\nuv tool install dyno-phi`} />
-      <P>For local biomodal development (deploying Modal GPU apps):</P>
-      <Snippet code={`pip install "dyno-phi[biomodals]"`} />
       <P>Set your API key (obtain from Settings → API keys in the Dyno web app):</P>
       <Snippet code={`export DYNO_API_KEY=ak_...`} />
       <P>Verify your connection:</P>

@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useMemo } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -8,6 +8,7 @@ import {
   BarChart3,
   ChevronLeft,
   ChevronRight,
+  Download,
   SlidersHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -32,24 +33,25 @@ import {
   DEFAULT_SCORES_PAGE_SIZE,
 } from "@/lib/schemas/scores-csv";
 import { cn } from "@/lib/utils";
+import { safeFormat } from "@/lib/utils/date";
 import {
   defaultSliderValue,
   sliderToThreshold,
-  thresholdToSliderValue,
   presetToSliderValues as sharedPresetToSliderValues,
   detectActivePreset,
 } from "@/lib/scoring/filters";
+import { MetricHistogram } from "@/components/shared/MetricHistogram";
+import type { MetricHistogramDataPoint } from "@/components/shared/MetricHistogram";
+import { toast } from "sonner";
 
 /**
  * All sliders are oriented so that dragging RIGHT = more permissive (less strict).
  *
  * For "higher is better" metrics (pLDDT, pTM, ipTM):
- *   - inverted: true — slider value represents permissiveness, actual threshold = max - sliderValue
- *   - Left (0) = max threshold = most strict; Right (max) = 0 threshold = most permissive
+ *   - inverted: true — actual threshold = max - sliderValue
  *
  * For "lower is better" metrics (iPAE, RMSD):
- *   - inverted: false — slider value IS the threshold directly
- *   - Left (0) = 0 threshold = most strict; Right (max) = max threshold = most permissive
+ *   - inverted: false — slider value IS the threshold
  */
 interface MetricFilter {
   key: string;
@@ -60,23 +62,22 @@ interface MetricFilter {
   min: number;
   max: number;
   step: number;
+  unit?: string;
 }
 
 const METRIC_FILTERS: MetricFilter[] = [
   { key: "esmfold_plddt", label: "ESMFold pLDDT", direction: "min", inverted: true,  defaultThreshold: 0.8,   min: 0, max: 1,  step: 0.01 },
   { key: "af2_ptm",       label: "pTM",            direction: "min", inverted: true,  defaultThreshold: 0.55,  min: 0, max: 1,  step: 0.01 },
   { key: "af2_iptm",      label: "ipTM",           direction: "min", inverted: true,  defaultThreshold: 0.5,   min: 0, max: 1,  step: 0.01 },
-  { key: "af2_ipae",      label: "iPAE (Å)",       direction: "max", inverted: false, defaultThreshold: 10.85, min: 0, max: 31, step: 0.1  },
-  { key: "rmsd",          label: "RMSD (Å)",       direction: "max", inverted: false, defaultThreshold: 3.5,   min: 0, max: 20, step: 0.1  },
+  { key: "af2_ipae",      label: "iPAE",           direction: "max", inverted: false, defaultThreshold: 10.85, min: 0, max: 31, step: 0.1, unit: "Å" },
+  { key: "rmsd",          label: "RMSD",           direction: "max", inverted: false, defaultThreshold: 3.5,   min: 0, max: 20, step: 0.1, unit: "Å" },
 ];
 
-/** Threshold values for named filter presets. Keys match MetricFilter.key. */
 const FILTER_PRESETS = {
   default: { esmfold_plddt: 0.80, af2_ptm: 0.55, af2_iptm: 0.50, af2_ipae: 10.85, rmsd: 3.5  },
   relaxed: { esmfold_plddt: 0.80, af2_ptm: 0.45, af2_iptm: 0.50, af2_ipae: 12.40, rmsd: 4.5  },
 } as const;
 
-/** Stable key-based lookup — avoids fragile positional array access. */
 const FILTER_BY_KEY = Object.fromEntries(
   METRIC_FILTERS.map((f) => [f.key, f])
 ) as Record<string, MetricFilter>;
@@ -101,21 +102,31 @@ function rowPasses(row: ScoresCsvRow, f: MetricFilter, sliderValue: number): boo
 function MetricFilterControl({
   filter,
   sliderValue,
+  active,
   onChange,
+  onClick,
 }: {
   filter: MetricFilter;
   sliderValue: number;
+  active: boolean;
   onChange: (v: number) => void;
+  onClick: () => void;
 }) {
   const threshold = sliderToThreshold(filter, sliderValue);
   const symbol = filter.direction === "min" ? "≥" : "≤";
   const decimals = filter.step < 1 ? 2 : 1;
   return (
-    <div className="space-y-2">
+    <div
+      className={cn(
+        "space-y-2 rounded px-2 py-1.5 -mx-2 cursor-pointer transition-colors",
+        active ? "bg-muted/60" : "hover:bg-muted/30"
+      )}
+      onClick={onClick}
+    >
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium font-mono">{filter.label}</span>
-        <span className="text-xs text-muted-foreground">
-          {symbol} {threshold.toFixed(decimals)}
+        <span className={cn("text-xs font-medium", active && "text-foreground")}>{filter.label}</span>
+        <span className="text-xs text-muted-foreground font-mono">
+          {symbol} {threshold.toFixed(decimals)}{filter.unit}
         </span>
       </div>
       <Slider
@@ -124,7 +135,8 @@ function MetricFilterControl({
         step={filter.step}
         value={[sliderValue]}
         onValueChange={([v]) => onChange(v ?? sliderValue)}
-        className="w-full"
+        onClick={(e) => e.stopPropagation()}
+        fillFromRight={filter.direction === "min"}
       />
     </div>
   );
@@ -167,6 +179,8 @@ export default function DatasetScoresPage({
   );
   const [viewMode, setViewMode] = useState<"all" | "pass">("all");
   const [page, setPage] = useState(1);
+  // Which metric's histogram is currently shown in the sidebar
+  const [histMetric, setHistMetric] = useState<string>(METRIC_FILTERS[0]!.key);
 
   const authReady = !authLoading && !!user;
 
@@ -206,12 +220,9 @@ export default function DatasetScoresPage({
       passesFilters: METRIC_FILTERS.every((f) => rowPasses(row, f, filterValues[f.key] ?? defaultSliderValue(f))),
     }))
     .sort((a, b) => {
-      // Passing designs rank above filtered-out ones
       if (a.passesFilters !== b.passesFilters) return a.passesFilters ? -1 : 1;
-      // Primary: ipTM descending (higher = better)
       const iptmDiff = (b.row.af2_iptm ?? 0) - (a.row.af2_iptm ?? 0);
       if (Math.abs(iptmDiff) > 1e-6) return iptmDiff;
-      // Secondary: pLDDT descending
       return (b.row.esmfold_plddt ?? 0) - (a.row.esmfold_plddt ?? 0);
     });
 
@@ -223,6 +234,36 @@ export default function DatasetScoresPage({
   const pageEnd = Math.min(page * DEFAULT_SCORES_PAGE_SIZE, totalCount);
 
   const isLoading = loadingDataset || loadingScoresMeta || loadingScoresRows;
+
+  // Build histogram data for the selected metric from the current page's rows
+  const histogramData = useMemo((): MetricHistogramDataPoint[] => {
+    const f = FILTER_BY_KEY[histMetric];
+    if (!f) return [];
+    return designs.map((row) => ({
+      value: row[f.key as keyof ScoresCsvRow] as number | undefined,
+      passes: METRIC_FILTERS.every((mf) => rowPasses(row, mf, filterValues[mf.key] ?? defaultSliderValue(mf))),
+    }));
+  }, [designs, histMetric, filterValues]);
+
+  const histFilterDef = FILTER_BY_KEY[histMetric];
+  const histThreshold = histFilterDef
+    ? sliderToThreshold(histFilterDef, filterValues[histMetric] ?? defaultSliderValue(histFilterDef))
+    : null;
+
+  async function handleDownload() {
+    if (!datasetScores?.download_url) {
+      toast.error("No scores file available to download");
+      return;
+    }
+    try {
+      const a = document.createElement("a");
+      a.href = datasetScores.download_url;
+      a.download = datasetScores.filename ?? "scores.csv";
+      a.click();
+    } catch {
+      toast.error("Failed to start download");
+    }
+  }
 
   return (
     <div className="space-y-4 max-w-6xl">
@@ -239,75 +280,122 @@ export default function DatasetScoresPage({
           <p className="text-xs text-muted-foreground mt-0.5">
             {dataset?.name ?? dataset?.dataset_id ?? id}
             {datasetScores?.completed_at && (
-              <> · {new Date(datasetScores.completed_at).toLocaleString()}</>
+              <> · scored {safeFormat(datasetScores.completed_at, "MMM d, HH:mm")}</>
             )}
           </p>
         </div>
+
+        {datasetScores && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleDownload}
+            className="gap-1.5 shrink-0"
+          >
+            <Download className="size-3.5" />
+            Download CSV
+          </Button>
+        )}
       </div>
 
       <div className="flex gap-4">
         <Card className="p-4 space-y-4 w-56 shrink-0 self-start">
-            {/* View toggle */}
-            <div className="flex rounded-md overflow-hidden border border-border text-xs font-medium">
-              {(["all", "pass"] as const).map((mode) => (
+          {/* View toggle */}
+          <div className="flex rounded-md overflow-hidden border border-border text-xs font-medium">
+            {(["all", "pass"] as const).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setViewMode(mode)}
+                className={cn(
+                  "flex-1 py-1.5 capitalize transition-colors",
+                  viewMode === mode
+                    ? "bg-foreground text-background"
+                    : "bg-muted text-muted-foreground hover:bg-muted/70"
+                )}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <SlidersHorizontal className="size-3.5" />
+            <span className="text-xs font-medium">Thresholds</span>
+          </div>
+          <div className="flex gap-1.5 -mt-2">
+            {(["default", "relaxed"] as const).map((preset) => {
+              const active = detectPreset(filterValues) === preset;
+              return (
                 <button
-                  key={mode}
-                  onClick={() => setViewMode(mode)}
+                  key={preset}
+                  onClick={() => { setFilterValues(presetToSliderValues(preset)); setPage(1); }}
                   className={cn(
-                    "flex-1 py-1.5 capitalize transition-colors",
-                    viewMode === mode
-                      ? "bg-foreground text-background"
-                      : "bg-muted text-muted-foreground hover:bg-muted/70"
+                    "flex-1 rounded px-2 py-1 text-xs border transition-colors",
+                    active
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-muted text-muted-foreground border-border hover:bg-muted/80"
                   )}
                 >
-                  {mode}
+                  {preset.charAt(0).toUpperCase() + preset.slice(1)}
                 </button>
-              ))}
-            </div>
+              );
+            })}
+          </div>
+          <Separator />
+          {METRIC_FILTERS.map((f) => (
+            <MetricFilterControl
+              key={f.key}
+              filter={f}
+              sliderValue={filterValues[f.key] ?? defaultSliderValue(f)}
+              active={histMetric === f.key}
+              onChange={(v) => {
+                setFilterValues((prev) => ({ ...prev, [f.key]: v }));
+                setPage(1);
+              }}
+              onClick={() => setHistMetric(f.key)}
+            />
+          ))}
+          <Separator />
+          <div className="flex justify-between text-xs text-muted-foreground">
+            <span>Passing (this page)</span>
+            <span className="font-semibold text-foreground">
+              {passedCount} / {designs.length}
+            </span>
+          </div>
 
-            <div className="flex items-center gap-1.5">
-              <SlidersHorizontal className="size-3.5" />
-              <span className="text-xs font-medium">Thresholds</span>
-            </div>
-            <div className="flex gap-1.5 -mt-2">
-              {(["default", "relaxed"] as const).map((preset) => {
-                const active = detectPreset(filterValues) === preset;
-                return (
-                  <button
-                    key={preset}
-                    onClick={() => { setFilterValues(presetToSliderValues(preset)); setPage(1); }}
-                    className={cn(
-                      "flex-1 rounded px-2 py-1 text-xs border transition-colors",
-                      active
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-muted text-muted-foreground border-border hover:bg-muted/80"
-                    )}
-                  >
-                    {preset.charAt(0).toUpperCase() + preset.slice(1)}
-                  </button>
-                );
-              })}
-            </div>
-            <Separator />
-            {METRIC_FILTERS.map((f) => (
-              <MetricFilterControl
-                key={f.key}
-                filter={f}
-                sliderValue={filterValues[f.key] ?? defaultSliderValue(f)}
-                onChange={(v) => {
-                  setFilterValues((prev) => ({ ...prev, [f.key]: v }));
-                  setPage(1);
-                }}
-              />
-            ))}
-            <Separator />
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>Passing (this page)</span>
-              <span className="font-semibold text-foreground">
-                {passedCount} / {designs.length}
-              </span>
-            </div>
-          </Card>
+          {/* Metric histogram */}
+          {designs.length > 0 && (
+            <>
+              <Separator />
+              <div className="space-y-1.5">
+                <p className="text-xs font-medium flex items-center gap-1">
+                  <BarChart3 className="size-3" />
+                  {histFilterDef?.label ?? histMetric}
+                  <span className="text-muted-foreground font-normal ml-auto">this page</span>
+                </p>
+                <div className="flex gap-2 text-[10px] text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <span className="inline-block h-1.5 w-2.5 rounded-sm bg-green-500/85" />
+                    Pass
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="inline-block h-1.5 w-2.5 rounded-sm bg-muted-foreground/25" />
+                    Filtered
+                  </span>
+                </div>
+                <MetricHistogram
+                  data={histogramData}
+                  threshold={histThreshold}
+                  direction={histFilterDef?.direction ?? "min"}
+                  label={histFilterDef?.label ?? histMetric}
+                  unit={histFilterDef?.unit ?? ""}
+                  height={110}
+                  nBins={20}
+                />
+              </div>
+            </>
+          )}
+        </Card>
 
         <div className="flex-1 overflow-hidden">
           {isLoading ? (
