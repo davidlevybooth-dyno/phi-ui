@@ -102,29 +102,19 @@ function rowPasses(row: ScoresCsvRow, f: MetricFilter, sliderValue: number): boo
 function MetricFilterControl({
   filter,
   sliderValue,
-  active,
   onChange,
-  onClick,
 }: {
   filter: MetricFilter;
   sliderValue: number;
-  active: boolean;
   onChange: (v: number) => void;
-  onClick: () => void;
 }) {
   const threshold = sliderToThreshold(filter, sliderValue);
   const symbol = filter.direction === "min" ? "≥" : "≤";
   const decimals = filter.step < 1 ? 2 : 1;
   return (
-    <div
-      className={cn(
-        "space-y-2 rounded px-2 py-1.5 -mx-2 cursor-pointer transition-colors",
-        active ? "bg-muted/60" : "hover:bg-muted/30"
-      )}
-      onClick={onClick}
-    >
+    <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <span className={cn("text-xs font-medium", active && "text-foreground")}>{filter.label}</span>
+        <span className="text-xs font-medium">{filter.label}</span>
         <span className="text-xs text-muted-foreground font-mono">
           {symbol} {threshold.toFixed(decimals)}{filter.unit}
         </span>
@@ -135,7 +125,6 @@ function MetricFilterControl({
         step={filter.step}
         value={[sliderValue]}
         onValueChange={([v]) => onChange(v ?? sliderValue)}
-        onClick={(e) => e.stopPropagation()}
         fillFromRight={filter.direction === "min"}
       />
     </div>
@@ -179,8 +168,6 @@ export default function DatasetScoresPage({
   );
   const [viewMode, setViewMode] = useState<"all" | "pass">("all");
   const [page, setPage] = useState(1);
-  // Which metric's histogram is currently shown in the sidebar
-  const [histMetric, setHistMetric] = useState<string>(METRIC_FILTERS[0]!.key);
 
   const authReady = !authLoading && !!user;
 
@@ -235,20 +222,21 @@ export default function DatasetScoresPage({
 
   const isLoading = loadingDataset || loadingScoresMeta || loadingScoresRows;
 
-  // Build histogram data for the selected metric from the current page's rows
-  const histogramData = useMemo((): MetricHistogramDataPoint[] => {
-    const f = FILTER_BY_KEY[histMetric];
-    if (!f) return [];
-    return designs.map((row) => ({
-      value: row[f.key as keyof ScoresCsvRow] as number | undefined,
-      passes: METRIC_FILTERS.every((mf) => rowPasses(row, mf, filterValues[mf.key] ?? defaultSliderValue(mf))),
-    }));
-  }, [designs, histMetric, filterValues]);
-
-  const histFilterDef = FILTER_BY_KEY[histMetric];
-  const histThreshold = histFilterDef
-    ? sliderToThreshold(histFilterDef, filterValues[histMetric] ?? defaultSliderValue(histFilterDef))
-    : null;
+  // Precompute histogram data for all metrics from the current page's rows
+  const allHistogramData = useMemo(() => {
+    const passFlags = designs.map((row) =>
+      METRIC_FILTERS.every((mf) => rowPasses(row, mf, filterValues[mf.key] ?? defaultSliderValue(mf)))
+    );
+    return Object.fromEntries(
+      METRIC_FILTERS.map((f) => [
+        f.key,
+        designs.map((row, i) => ({
+          value: row[f.key as keyof ScoresCsvRow] as number | undefined,
+          passes: passFlags[i]!,
+        })),
+      ])
+    ) as Record<string, MetricHistogramDataPoint[]>;
+  }, [designs, filterValues]);
 
   async function handleDownload() {
     if (!datasetScores?.download_url) {
@@ -347,12 +335,10 @@ export default function DatasetScoresPage({
               key={f.key}
               filter={f}
               sliderValue={filterValues[f.key] ?? defaultSliderValue(f)}
-              active={histMetric === f.key}
               onChange={(v) => {
                 setFilterValues((prev) => ({ ...prev, [f.key]: v }));
                 setPage(1);
               }}
-              onClick={() => setHistMetric(f.key)}
             />
           ))}
           <Separator />
@@ -362,39 +348,6 @@ export default function DatasetScoresPage({
               {passedCount} / {designs.length}
             </span>
           </div>
-
-          {/* Metric histogram */}
-          {designs.length > 0 && (
-            <>
-              <Separator />
-              <div className="space-y-1.5">
-                <p className="text-xs font-medium flex items-center gap-1">
-                  <BarChart3 className="size-3" />
-                  {histFilterDef?.label ?? histMetric}
-                  <span className="text-muted-foreground font-normal ml-auto">this page</span>
-                </p>
-                <div className="flex gap-2 text-[10px] text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <span className="inline-block h-1.5 w-2.5 rounded-sm bg-green-500/85" />
-                    Pass
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className="inline-block h-1.5 w-2.5 rounded-sm bg-muted-foreground/25" />
-                    Filtered
-                  </span>
-                </div>
-                <MetricHistogram
-                  data={histogramData}
-                  threshold={histThreshold}
-                  direction={histFilterDef?.direction ?? "min"}
-                  label={histFilterDef?.label ?? histMetric}
-                  unit={histFilterDef?.unit ?? ""}
-                  height={110}
-                  nBins={20}
-                />
-              </div>
-            </>
-          )}
         </Card>
 
         <div className="flex-1 overflow-hidden">
@@ -551,6 +504,39 @@ export default function DatasetScoresPage({
           )}
         </div>
       </div>
+
+      {/* Per-metric histograms — shown below the table so the full width is available */}
+      {designs.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs font-medium flex items-center gap-1.5 text-muted-foreground">
+            <BarChart3 className="size-3.5" />
+            Score distributions
+            <span className="font-normal">(this page · green = passing current thresholds)</span>
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            {METRIC_FILTERS.map((f) => {
+              const threshold = sliderToThreshold(f, filterValues[f.key] ?? defaultSliderValue(f));
+              return (
+                <Card key={f.key} className="p-3 space-y-1">
+                  <p className="text-[11px] font-medium">
+                    {f.label}
+                    {f.unit && <span className="text-muted-foreground ml-0.5">({f.unit})</span>}
+                  </p>
+                  <MetricHistogram
+                    data={allHistogramData[f.key] ?? []}
+                    threshold={threshold}
+                    direction={f.direction}
+                    label={f.label}
+                    unit={f.unit ?? ""}
+                    height={80}
+                    nBins={20}
+                  />
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
