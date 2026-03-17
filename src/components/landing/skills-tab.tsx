@@ -324,10 +324,10 @@ export function SkillsTab() {
           <CodeHighlight code={EXAMPLE_RESEARCH} lang="bash" />
         </div>
 
-        <div className="space-y-1">
+        {/* <div className="space-y-1">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Design</p>
           <CodeHighlight code={EXAMPLE_DESIGN} lang="bash" />
-        </div>
+        </div> */}
 
         <div className="space-y-1">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Filter</p>

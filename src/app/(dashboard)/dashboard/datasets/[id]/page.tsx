@@ -3,7 +3,7 @@
 import { use, useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Check, ChevronLeft, ChevronRight, BarChart3, Copy, FileText, Pencil, Save } from "lucide-react";
+import { AlertCircle, ArrowLeft, Check, ChevronLeft, ChevronRight, BarChart3, Copy, FileText, Loader2, Pencil, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,9 +17,14 @@ import {
   postDatasetResearchNotes,
   updateDataset,
 } from "@/lib/api/upload";
-import { listJobs } from "@/lib/api/jobs";
-import { getJobTypeDisplayLabel, getDatasetIdFromJob } from "@/lib/schemas/job";
+import { listJobs, getJobStatus } from "@/lib/api/jobs";
+import {
+  getJobTypeDisplayLabel,
+  getProgressStepDisplayLabel,
+  getDatasetIdFromJob,
+} from "@/lib/schemas/job";
 import type { Job } from "@/lib/schemas/job";
+import { cn } from "@/lib/utils";
 import type { Dataset, DatasetFile, DatasetJobEntry } from "@/lib/schemas/upload";
 import { useAuth } from "@/lib/auth-context";
 import { safeFormat } from "@/lib/utils/date";
@@ -128,6 +133,132 @@ function EditableName({
       </h1>
       <Pencil className="size-3.5 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
     </button>
+  );
+}
+
+const TERMINAL_STATUSES = new Set(["completed", "failed", "cancelled"]);
+
+const STATUS_STYLES: Record<string, string> = {
+  pending:   "bg-muted text-muted-foreground",
+  submitted: "bg-muted text-muted-foreground",
+  running:   "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+  completed: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
+  failed:    "bg-destructive/10 text-destructive",
+  cancelled: "bg-muted text-muted-foreground",
+};
+
+function StatusBadge({ status }: { status: string }) {
+  return (
+    <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium", STATUS_STYLES[status] ?? "bg-muted text-muted-foreground")}>
+      {status === "running" && <Loader2 className="size-2.5 animate-spin" />}
+      {status}
+    </span>
+  );
+}
+
+/**
+ * Renders a single job card and self-polls the single-job status endpoint every 10s
+ * for non-terminal jobs. Per backend docs, this also triggers output_files backfill
+ * for newly-completed jobs.
+ */
+function JobCard({
+  job,
+  datasetId,
+}: {
+  job: { job_id: string; job_type: string; status: string; created_at: string; completed_at?: string | null };
+  datasetId: string;
+}) {
+  const queryClient = useQueryClient();
+  const wasTerminal = useRef(TERMINAL_STATUSES.has(job.status));
+
+  const { data: liveStatus } = useQuery({
+    queryKey: ["job-status", job.job_id],
+    queryFn: () => getJobStatus(job.job_id),
+    // Always fetch at least once — even for completed jobs — to trigger the
+    // output_files artifact backfill described in the backend integration guide (§3).
+    staleTime: 0,
+    refetchInterval: (query) => {
+      const status = query.state.data?.status ?? job.status;
+      return TERMINAL_STATUSES.has(status) ? false : 10_000;
+    },
+  });
+
+  // When job transitions into a terminal state, refresh the scores + job list queries.
+  useEffect(() => {
+    const status = liveStatus?.status;
+    if (status && TERMINAL_STATUSES.has(status) && !wasTerminal.current) {
+      wasTerminal.current = true;
+      queryClient.invalidateQueries({ queryKey: ["dataset-scores", datasetId] });
+      queryClient.invalidateQueries({ queryKey: ["dataset-jobs", datasetId] });
+      queryClient.invalidateQueries({ queryKey: ["jobs", "dataset", datasetId] });
+    }
+  }, [liveStatus?.status, datasetId, queryClient]);
+
+  const effectiveStatus = liveStatus?.status ?? job.status;
+  const progress = liveStatus?.progress;
+  const error = liveStatus?.error;
+  const completedAt = liveStatus?.completed_at ?? job.completed_at;
+
+  return (
+    <Card className="p-4">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-sm font-medium">{getJobTypeDisplayLabel(job.job_type)}</p>
+            <StatusBadge status={effectiveStatus} />
+          </div>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {job.job_id.slice(0, 12)}… · {safeFormat(job.created_at, "MMM d, HH:mm")}
+            {completedAt && ` → ${safeFormat(completedAt, "HH:mm")}`}
+          </p>
+
+          {/* Running progress */}
+          {effectiveStatus === "running" && progress && (
+            <div className="mt-2 space-y-1">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">
+                  {getProgressStepDisplayLabel(progress.current_step.split(":")[0])}
+                  {progress.current_step.includes(":") && (
+                    <span className="ml-1 text-muted-foreground/60">
+                      ({progress.current_step.split(":")[1].trim()})
+                    </span>
+                  )}
+                </p>
+                <p className="text-xs text-muted-foreground tabular-nums">{progress.percent_complete}%</p>
+              </div>
+              <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-amber-500 transition-all duration-500"
+                  style={{ width: `${progress.percent_complete}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Pending — no progress yet */}
+          {effectiveStatus === "pending" && (
+            <p className="text-xs text-muted-foreground mt-1">Waiting for worker to pick up job…</p>
+          )}
+
+          {/* Error detail */}
+          {effectiveStatus === "failed" && error && (
+            <div className="mt-2 flex items-start gap-1.5 text-xs text-destructive">
+              <AlertCircle className="size-3.5 mt-0.5 shrink-0" />
+              <span className="break-all">{error}</span>
+            </div>
+          )}
+        </div>
+
+        {effectiveStatus === "completed" && (
+          <Link
+            href={`/dashboard/datasets/${datasetId}/scores`}
+            className="text-xs text-primary hover:underline shrink-0"
+          >
+            View scores
+          </Link>
+        )}
+      </div>
+    </Card>
   );
 }
 
@@ -457,25 +588,7 @@ export default function DatasetDetailPage({
         ) : (
           <div className="space-y-2">
             {jobsForDataset.map((job) => (
-              <Card key={job.job_id} className="p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-medium">
-                      {getJobTypeDisplayLabel(job.job_type)}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {job.job_id.slice(0, 12)}… · {job.status} ·{" "}
-                      {safeFormat(job.created_at, "MMM d, HH:mm")}
-                    </p>
-                  </div>
-                  <Link
-                    href={`/dashboard/datasets/${id}/scores`}
-                    className="text-xs text-primary hover:underline"
-                  >
-                    View scores
-                  </Link>
-                </div>
-              </Card>
+              <JobCard key={job.job_id} job={job} datasetId={id} />
             ))}
           </div>
         )}
