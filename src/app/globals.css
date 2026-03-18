@@ -123,6 +123,8 @@
   body {
     @apply bg-background text-foreground;
     overflow-x: hidden; /* prevent page-wide horizontal scroll on mobile */
+    overflow-wrap: break-word; /* prevent long URLs / inline-code from busting out of containers */
+    word-break: break-word;
   }
   /* Desktop: horizontal scroll for wide code blocks. */
   pre {
