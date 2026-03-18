@@ -358,10 +358,9 @@ export default function DatasetDetailPage({
     enabled: authReady && !!id,
   });
 
-  const files = dataset?.files ?? dataset?.sample_files ?? [];
   useEffect(() => {
     setFilesPage(1);
-  }, [id, files.length]);
+  }, [id]);
 
   const { data: notes, isLoading: loadingNotes } = useQuery({
     queryKey: ["dataset-notes", id],
@@ -413,14 +412,21 @@ export default function DatasetDetailPage({
     staleTime: 5 * 60_000,
   });
 
-  // Build filename → artifact_id lookup for download buttons.
-  const artifactByFilename = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const a of artifactsResponse?.artifacts ?? []) {
-      map.set(a.filename, a.artifact_id);
+  // Prefer the full artifacts list as the file source — it covers all uploaded files and
+  // each entry has an artifact_id for downloading. Fall back to sample_files from the
+  // dataset object when the artifacts endpoint hasn't returned yet.
+  const allFiles = useMemo(() => {
+    const artifacts = artifactsResponse?.artifacts ?? [];
+    if (artifacts.length > 0) {
+      return artifacts.map((a) => ({ filename: a.filename, artifactId: a.artifact_id, size_bytes: a.size_bytes ?? undefined }));
     }
-    return map;
-  }, [artifactsResponse]);
+    // Fallback: sample_files from dataset (no artifact_id available yet)
+    return (dataset?.files ?? dataset?.sample_files ?? []).map((f) => ({
+      filename: f.filename,
+      artifactId: undefined as string | undefined,
+      size_bytes: f.size_bytes ?? undefined,
+    }));
+  }, [artifactsResponse, dataset]);
 
   const { data: datasetScores, isLoading: loadingScores } = useQuery({
     queryKey: ["dataset-scores", id],
@@ -453,13 +459,16 @@ export default function DatasetDetailPage({
   });
 
   const displayNotes = notesDraft !== null ? notesDraft : notes?.content ?? "";
-  const filesTotal = files.length;
+  const filesTotal = allFiles.length;
   const filesTotalPages = Math.max(1, Math.ceil(filesTotal / FILES_PAGE_SIZE));
   const filesStart = filesTotal === 0 ? 0 : (filesPage - 1) * FILES_PAGE_SIZE + 1;
   const filesEnd = Math.min(filesPage * FILES_PAGE_SIZE, filesTotal);
-  const filesPageItems = files.slice(filesStart - 1, filesEnd);
+  const filesPageItems = allFiles.slice(filesStart - 1, filesEnd);
 
-  const fileTypeSummary = summarizeFileTypes(files);
+  // summarizeFileTypes expects DatasetFile[]; adapt from allFiles
+  const fileTypeSummary = summarizeFileTypes(
+    allFiles.map((f) => ({ filename: f.filename ?? "" }))
+  );
   const datasetErrorMessage =
     datasetErr instanceof Error ? datasetErr.message : "Failed to load dataset.";
 
@@ -520,10 +529,10 @@ export default function DatasetDetailPage({
         </Card>
       )}
 
-      {dataset && files.length > 0 && (
+      {dataset && allFiles.length > 0 && (
         <Card className="p-4">
           <div className="flex items-center justify-between mb-2">
-            <h2 className="text-sm font-medium">Sample files</h2>
+            <h2 className="text-sm font-medium">Files</h2>
             {filesTotal > FILES_PAGE_SIZE && (
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
                 <span>
@@ -554,17 +563,14 @@ export default function DatasetDetailPage({
             )}
           </div>
           <ul className="text-xs font-mono space-y-1">
-            {filesPageItems.map((f, i) => {
-              const artifactId = f.filename ? artifactByFilename.get(f.filename) : undefined;
-              return (
-                <li key={filesStart + i} className="flex items-center">
-                  <span>{f.filename ?? "—"}</span>
-                  {artifactId && (
-                    <DownloadFileButton artifactId={artifactId} filename={f.filename!} />
-                  )}
-                </li>
-              );
-            })}
+            {filesPageItems.map((f, i) => (
+              <li key={filesStart + i} className="flex items-center">
+                <span>{f.filename ?? "—"}</span>
+                {f.artifactId && f.filename && (
+                  <DownloadFileButton artifactId={f.artifactId} filename={f.filename} />
+                )}
+              </li>
+            ))}
           </ul>
         </Card>
       )}
