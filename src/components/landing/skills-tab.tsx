@@ -140,7 +140,7 @@ function SignUpSteps({ startAt = 1 }: { startAt?: number }) {
         <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-foreground text-background text-xs font-semibold mt-0.5">
           {startAt}
         </span>
-        <div className="text-sm">
+        <div className="text-sm min-w-0">
           <span className="font-medium">Sign up</span>
           <span className="text-muted-foreground">
             {" "}— Create an account at{" "}
@@ -160,7 +160,7 @@ function SignUpSteps({ startAt = 1 }: { startAt?: number }) {
         <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-foreground text-background text-xs font-semibold mt-0.5">
           {startAt + 1}
         </span>
-        <div className="text-sm">
+        <div className="text-sm min-w-0">
           <span className="font-medium">Create an API key</span>
           <span className="text-muted-foreground">
             {" "}— Go to{" "}
@@ -200,7 +200,7 @@ function CliSection() {
             <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-foreground text-background text-xs font-semibold mt-0.5">
               3
             </span>
-            <div className="flex-1 space-y-1.5">
+            <div className="flex-1 min-w-0 space-y-1.5">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Install the CLI</span>
                 <div className="flex items-center rounded-md bg-muted p-0.5 gap-0.5 text-xs">
@@ -249,7 +249,7 @@ function CliSection() {
             <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-foreground text-background text-xs font-semibold mt-0.5">
               4
             </span>
-            <div className="flex-1 space-y-1.5">
+            <div className="flex-1 min-w-0 space-y-1.5">
               <span className="text-sm font-medium">Set your API key</span>
               <CodeHighlight code={SETUP_API_KEY} lang="bash" />
             </div>
@@ -260,7 +260,7 @@ function CliSection() {
             <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-foreground text-background text-xs font-semibold mt-0.5">
               5
             </span>
-            <div className="flex-1 space-y-1.5">
+            <div className="flex-1 min-w-0 space-y-1.5">
               <span className="text-sm font-medium">Run the tutorial</span>
               <CodeHighlight code={EXAMPLE_TUTORIAL} lang="bash" />
               <p className="text-xs text-muted-foreground">
@@ -274,7 +274,7 @@ function CliSection() {
             <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-foreground text-background text-xs font-semibold mt-0.5">
               6
             </span>
-            <div className="flex-1 space-y-1.5">
+            <div className="flex-1 min-w-0 space-y-1.5">
               <span className="text-sm font-medium">Filter your own candidates</span>
               <CodeHighlight code={CLI_QUICKSTART} lang="bash" />
               <p className="text-xs text-muted-foreground">
@@ -389,7 +389,7 @@ function ClaudeSection() {
             <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-foreground text-background text-xs font-semibold mt-0.5">
               3
             </span>
-            <div className="flex-1 space-y-1.5">
+            <div className="flex-1 min-w-0 space-y-1.5">
               <span className="text-sm font-medium">Set your API key</span>
               <CodeHighlight code={SETUP_API_KEY} lang="bash" />
             </div>
@@ -400,7 +400,7 @@ function ClaudeSection() {
             <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-foreground text-background text-xs font-semibold mt-0.5">
               4
             </span>
-            <div className="flex-1 space-y-1.5">
+            <div className="flex-1 min-w-0 space-y-1.5">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Add the skill to your agent</span>
                 <div className="flex items-center rounded-md bg-muted p-0.5 gap-0.5 text-xs">
