@@ -7,7 +7,6 @@ import {
   CartesianGrid,
   ReferenceLine,
   ResponsiveContainer,
-  Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
@@ -95,19 +94,6 @@ export function MetricHistogram({
           interval="preserveStartEnd"
         />
         <YAxis hide />
-        <Tooltip
-          formatter={(value, name) => [
-            value,
-            name === "passes" ? "Passing all filters" : "Filtered out",
-          ]}
-          labelFormatter={(v) => `${label} = ${v}${unit}`}
-          contentStyle={{
-            fontSize: 11,
-            border: "1px solid hsl(var(--border))",
-            borderRadius: 6,
-            background: "hsl(var(--background))",
-          }}
-        />
         {threshold !== null && (
           <ReferenceLine
             x={threshold}

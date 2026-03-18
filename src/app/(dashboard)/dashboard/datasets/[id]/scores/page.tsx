@@ -168,6 +168,7 @@ export default function DatasetScoresPage({
   );
   const [viewMode, setViewMode] = useState<"all" | "pass">("all");
   const [page, setPage] = useState(1);
+  const [histMetric, setHistMetric] = useState<string>(METRIC_FILTERS[0]!.key);
 
   const authReady = !authLoading && !!user;
 
@@ -222,21 +223,16 @@ export default function DatasetScoresPage({
 
   const isLoading = loadingDataset || loadingScoresMeta || loadingScoresRows;
 
-  // Precompute histogram data for all metrics from the current page's rows
-  const allHistogramData = useMemo(() => {
+  // Compute histogram data for the selected metric only
+  const histogramData = useMemo((): MetricHistogramDataPoint[] => {
     const passFlags = designs.map((row) =>
       METRIC_FILTERS.every((mf) => rowPasses(row, mf, filterValues[mf.key] ?? defaultSliderValue(mf)))
     );
-    return Object.fromEntries(
-      METRIC_FILTERS.map((f) => [
-        f.key,
-        designs.map((row, i) => ({
-          value: row[f.key as keyof ScoresCsvRow] as number | undefined,
-          passes: passFlags[i]!,
-        })),
-      ])
-    ) as Record<string, MetricHistogramDataPoint[]>;
-  }, [designs, filterValues]);
+    return designs.map((row, i) => ({
+      value: row[histMetric as keyof ScoresCsvRow] as number | undefined,
+      passes: passFlags[i]!,
+    }));
+  }, [designs, filterValues, histMetric]);
 
   async function handleDownload() {
     if (!datasetScores?.download_url) {
@@ -505,38 +501,42 @@ export default function DatasetScoresPage({
         </div>
       </div>
 
-      {/* Per-metric histograms — shown below the table so the full width is available */}
-      {designs.length > 0 && (
-        <div className="space-y-2">
-          <p className="text-xs font-medium flex items-center gap-1.5 text-muted-foreground">
-            <BarChart3 className="size-3.5" />
-            Score distributions
-            <span className="font-normal">(this page · green = passing current thresholds)</span>
-          </p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            {METRIC_FILTERS.map((f) => {
-              const threshold = sliderToThreshold(f, filterValues[f.key] ?? defaultSliderValue(f));
-              return (
-                <Card key={f.key} className="p-3 space-y-1">
-                  <p className="text-[11px] font-medium">
-                    {f.label}
-                    {f.unit && <span className="text-muted-foreground ml-0.5">({f.unit})</span>}
-                  </p>
-                  <MetricHistogram
-                    data={allHistogramData[f.key] ?? []}
-                    threshold={threshold}
-                    direction={f.direction}
-                    label={f.label}
-                    unit={f.unit ?? ""}
-                    height={80}
-                    nBins={20}
-                  />
-                </Card>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      {/* Single-metric histogram with selector */}
+      {designs.length > 0 && (() => {
+        const selectedFilter = METRIC_FILTERS.find((f) => f.key === histMetric) ?? METRIC_FILTERS[0]!;
+        const threshold = sliderToThreshold(selectedFilter, filterValues[selectedFilter.key] ?? defaultSliderValue(selectedFilter));
+        return (
+          <Card className="p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium flex items-center gap-1.5 text-muted-foreground">
+                <BarChart3 className="size-3.5" />
+                Score distribution
+                <span className="font-normal">(this page · green = passing threshold)</span>
+              </p>
+              <select
+                value={histMetric}
+                onChange={(e) => setHistMetric(e.target.value)}
+                className="text-xs border rounded px-2 py-1 bg-background text-foreground"
+              >
+                {METRIC_FILTERS.map((f) => (
+                  <option key={f.key} value={f.key}>
+                    {f.label}{f.unit ? ` (${f.unit})` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <MetricHistogram
+              data={histogramData}
+              threshold={threshold}
+              direction={selectedFilter.direction}
+              label={selectedFilter.label}
+              unit={selectedFilter.unit ?? ""}
+              height={140}
+              nBins={30}
+            />
+          </Card>
+        );
+      })()}
     </div>
   );
 }

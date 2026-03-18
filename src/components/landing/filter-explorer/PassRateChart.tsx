@@ -5,7 +5,6 @@ import {
   BarChart,
   CartesianGrid,
   ResponsiveContainer,
-  Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
@@ -54,16 +53,6 @@ export function PassRateChart({
           tickLine={false}
           domain={[0, 100]}
           width={32}
-        />
-        <Tooltip
-          formatter={(value, name) => [`${value}%`, MODEL_LABELS[String(name)] ?? String(name)]}
-          labelStyle={{ fontSize: 11 }}
-          contentStyle={{
-            fontSize: 11,
-            border: "1px solid hsl(var(--border))",
-            borderRadius: 6,
-            background: "hsl(var(--background))",
-          }}
         />
         {MODEL_IDS.map((model) => (
           <Bar
