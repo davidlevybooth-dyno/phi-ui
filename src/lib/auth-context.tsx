@@ -18,6 +18,10 @@ configureCredentials(getStoredCredentials);
 interface AuthContextValue {
   user: AuthUser | null;
   loading: boolean;
+  /** True only after Clerk has loaded AND the session JWT has been fetched.
+   *  Use this (not `!loading && !!user`) to gate API queries — prevents 401s
+   *  from requests that fire before getToken() has resolved. */
+  ready: boolean;
   signOut: () => Promise<void>;
 }
 
@@ -36,7 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { user: clerkUser, isLoaded, isSignedIn } = useUser();
   const { getToken } = useClerkAuth();
   const { signOut: clerkSignOut } = useClerk();
-  const { setApiKey } = useSessionStore();
+  const { apiKey, setApiKey } = useSessionStore();
   const { setUserId, setOrgId } = useSettingsStore();
   const hasSyncedOptIn = useRef(false);
 
@@ -106,13 +110,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const user = isLoaded && clerkUser ? toAuthUser(clerkUser) : null;
 
+  // ready = Clerk loaded AND (not signed in, OR JWT has been fetched into the store).
+  // Prevents API queries firing before getToken() has resolved.
+  const ready = isLoaded && (!isSignedIn || apiKey !== null);
+
   const signOut = async () => {
     setApiKey(null);
     await clerkSignOut();
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading: !isLoaded, signOut }}>
+    <AuthContext.Provider value={{ user, loading: !isLoaded, ready, signOut }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,11 +1,13 @@
 import { apiGet, apiPost, apiPatch } from "./client";
 import {
+  DatasetArtifactsResponseSchema,
   DatasetJobsResponseSchema,
   DatasetListResponseSchema,
   DatasetResearchNotesResponseSchema,
   DatasetSchema,
   DatasetScoresResponseSchema,
   type Dataset,
+  type DatasetArtifactsResponse,
   type DatasetJobsResponse,
   type DatasetListResponse,
   type DatasetResearchNotesResponse,
@@ -144,6 +146,16 @@ export function getDatasetJobs(
     `/v1/phi/datasets/${encodeURIComponent(datasetId)}/jobs`,
     opts as Record<string, string | undefined>
   ).then((data) => DatasetJobsResponseSchema.parse(data));
+}
+
+/**
+ * List all uploaded artifacts (files) for a dataset.
+ * Each artifact has an artifact_id which can be passed to getDownloadUrl() for a signed URL.
+ */
+export function getDatasetArtifacts(datasetId: string): Promise<DatasetArtifactsResponse> {
+  return apiGet<unknown>(
+    `/v1/phi/datasets/${encodeURIComponent(datasetId)}/artifacts`
+  ).then((data) => DatasetArtifactsResponseSchema.parse(data));
 }
 
 /**

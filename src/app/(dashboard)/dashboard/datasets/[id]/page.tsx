@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useEffect, useRef, useCallback } from "react";
+import { use, useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, ArrowLeft, Check, ChevronLeft, ChevronRight, BarChart3, Copy, Download, FileText, Loader2, Pencil, Save } from "lucide-react";
@@ -11,12 +11,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import {
   getDataset,
+  getDatasetArtifacts,
   getDatasetJobs,
   getDatasetScores,
   getDatasetResearchNotes,
   postDatasetResearchNotes,
   updateDataset,
 } from "@/lib/api/upload";
+import { getDownloadUrl } from "@/lib/api/assets";
 import { listJobs, getJobStatus } from "@/lib/api/jobs";
 import {
   getJobTypeDisplayLabel,
@@ -149,6 +151,42 @@ function parseOutputFile(
     return null;
   }
   return { filename, url };
+}
+
+/** Download button for a single dataset artifact. Fetches a fresh signed URL on click. */
+function DownloadFileButton({ artifactId, filename }: { artifactId: string; filename: string }) {
+  const [loading, setLoading] = useState(false);
+
+  async function handleClick() {
+    setLoading(true);
+    try {
+      const { download_url } = await getDownloadUrl(artifactId);
+      const a = document.createElement("a");
+      a.href = download_url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch {
+      const { toast } = await import("sonner");
+      toast.error(`Failed to download ${filename}`);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <button
+      onClick={handleClick}
+      disabled={loading}
+      title={`Download ${filename}`}
+      className="ml-1.5 inline-flex items-center text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
+    >
+      {loading
+        ? <Loader2 className="size-3 animate-spin" />
+        : <Download className="size-3" />}
+    </button>
+  );
 }
 
 const TERMINAL_STATUSES = new Set(["completed", "failed", "cancelled"]);
@@ -303,13 +341,11 @@ export default function DatasetDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, ready: authReady } = useAuth();
   const queryClient = useQueryClient();
   const [notesDraft, setNotesDraft] = useState<string | null>(null);
   const [filesPage, setFilesPage] = useState(1);
   const FILES_PAGE_SIZE = 10;
-
-  const authReady = !authLoading && !!user;
 
   const {
     data: dataset,
@@ -368,6 +404,23 @@ export default function DatasetDetailPage({
         }));
 
   const loadingJobs = loadingDatasetJobs || (datasetJobs.length === 0 && loadingFallbackJobs);
+
+  const { data: artifactsResponse } = useQuery({
+    queryKey: ["dataset-artifacts", id],
+    queryFn: () => getDatasetArtifacts(id),
+    enabled: authReady && !!id,
+    // Artifacts don't change — no need to refetch frequently.
+    staleTime: 5 * 60_000,
+  });
+
+  // Build filename → artifact_id lookup for download buttons.
+  const artifactByFilename = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const a of artifactsResponse?.artifacts ?? []) {
+      map.set(a.filename, a.artifact_id);
+    }
+    return map;
+  }, [artifactsResponse]);
 
   const { data: datasetScores, isLoading: loadingScores } = useQuery({
     queryKey: ["dataset-scores", id],
@@ -501,9 +554,17 @@ export default function DatasetDetailPage({
             )}
           </div>
           <ul className="text-xs font-mono space-y-1">
-            {filesPageItems.map((f, i) => (
-              <li key={filesStart + i}>{f.filename ?? "—"}</li>
-            ))}
+            {filesPageItems.map((f, i) => {
+              const artifactId = f.filename ? artifactByFilename.get(f.filename) : undefined;
+              return (
+                <li key={filesStart + i} className="flex items-center">
+                  <span>{f.filename ?? "—"}</span>
+                  {artifactId && (
+                    <DownloadFileButton artifactId={artifactId} filename={f.filename!} />
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </Card>
       )}

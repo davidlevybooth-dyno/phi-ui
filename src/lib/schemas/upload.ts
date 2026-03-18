@@ -156,6 +156,25 @@ export const JobScoresResponseSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
+// Dataset artifacts (GET /v1/phi/datasets/{id}/artifacts)
+// ---------------------------------------------------------------------------
+
+export const DatasetArtifactSchema = z.object({
+  artifact_id: z.string(),
+  filename: z.string(),
+  artifact_type: z.string().optional(),
+  size_bytes: z.number().nullable().optional(),
+  mime_type: z.string().nullable().optional(),
+  created_at: z.string().optional(),
+}).passthrough();
+
+export const DatasetArtifactsResponseSchema = z.object({
+  dataset_id: z.string().optional(),
+  artifacts: z.array(DatasetArtifactSchema),
+  total_count: z.number().int().optional(),
+}).passthrough();
+
+// ---------------------------------------------------------------------------
 // Dataset update (PATCH /v1/phi/datasets/{id})
 // ---------------------------------------------------------------------------
 
@@ -167,6 +186,8 @@ export const UpdateDatasetRequestSchema = z.object({
 // Types
 // ---------------------------------------------------------------------------
 
+export type DatasetArtifact = z.infer<typeof DatasetArtifactSchema>;
+export type DatasetArtifactsResponse = z.infer<typeof DatasetArtifactsResponseSchema>;
 export type UpdateDatasetRequest = z.infer<typeof UpdateDatasetRequestSchema>;
 export type UploadUrlRequest = z.infer<typeof UploadUrlRequestSchema>;
 export type UploadUrlResponse = z.infer<typeof UploadUrlResponseSchema>;

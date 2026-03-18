@@ -162,15 +162,13 @@ export default function DatasetScoresPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, ready: authReady } = useAuth();
   const [filterValues, setFilterValues] = useState<Record<string, number>>(
     Object.fromEntries(METRIC_FILTERS.map((f) => [f.key, defaultSliderValue(f)]))
   );
   const [viewMode, setViewMode] = useState<"all" | "pass">("all");
   const [page, setPage] = useState(1);
   const [histMetric, setHistMetric] = useState<string>(METRIC_FILTERS[0]!.key);
-
-  const authReady = !authLoading && !!user;
 
   const { data: dataset, isLoading: loadingDataset } = useQuery({
     queryKey: ["dataset", id],

@@ -125,8 +125,7 @@ function InlineName({
 export default function DatasetsPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { user, loading: authLoading } = useAuth();
-  const authReady = !authLoading && !!user;
+  const { user, loading: authLoading, ready: authReady } = useAuth();
 
   const [calloutDismissed, setCalloutDismissed] = useState(() => {
     if (typeof window === "undefined") return false;
