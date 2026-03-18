@@ -122,5 +122,18 @@
   }
   body {
     @apply bg-background text-foreground;
+    overflow-x: hidden; /* prevent page-wide horizontal scroll on mobile */
+  }
+  /* Ensure code blocks never blow out their container on narrow viewports.
+     The scroll container is placed on a wrapper div in CodeHighlight; these
+     rules are a backstop for any pre/code rendered outside that component. */
+  pre {
+    overflow-x: auto;
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
+  }
+  pre code {
+    display: block;
+    min-width: 0;
   }
 }

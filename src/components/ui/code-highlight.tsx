@@ -49,20 +49,27 @@ export function CodeHighlight({ code, lang, className }: CodeHighlightProps) {
   }, [code, lang, resolvedTheme]);
 
   if (!html) {
+    // Outer element is the scroll container; inner code expands to content width.
     return (
-      <pre
-        className={`overflow-x-auto max-w-full rounded-md bg-muted p-4 text-xs leading-relaxed font-mono ${className ?? ""}`}
-      >
-        <code>{code}</code>
-      </pre>
+      <div className={`overflow-x-auto rounded-md bg-muted ${className ?? ""}`}>
+        <pre className="p-4 text-xs leading-relaxed font-mono w-max min-w-full">
+          <code>{code}</code>
+        </pre>
+      </div>
     );
   }
 
+  // Outer div is the scroll container. The injected Shiki <pre> can expand as
+  // wide as it needs to; the outer div clips and scrolls it on mobile.
   return (
     <div
-      ref={codeRef}
-      className={`min-w-0 w-full rounded-md text-xs leading-relaxed [&>pre]:p-4 [&>pre]:rounded-md [&>pre]:overflow-x-auto [&>pre]:max-w-full ${className ?? ""}`}
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
+      className={`overflow-x-auto rounded-md text-xs leading-relaxed ${className ?? ""}`}
+    >
+      <div
+        ref={codeRef}
+        className="w-max min-w-full [&>pre]:p-4 [&>pre]:rounded-md"
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
+    </div>
   );
 }
