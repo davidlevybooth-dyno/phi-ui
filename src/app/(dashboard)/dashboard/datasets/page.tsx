@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, Copy, Database, Info, KeyRound, Pencil, X } from "lucide-react";
+import { Check, Copy, Database, Info, KeyRound, Pencil, Sparkles, X, Zap } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
@@ -22,9 +22,11 @@ import { useAuth } from "@/lib/auth-context";
 import { safeFormat } from "@/lib/utils/date";
 import { toast } from "sonner";
 import type { DatasetListResponse } from "@/lib/schemas/upload";
+import { useQuota } from "@/hooks/use-quota";
 
 const CLI_CALLOUT_KEY = "dyno-phi:datasets-callout-dismissed";
 const CLI_SETUP_KEY = "dyno-phi:cli-setup-dismissed";
+const EARLY_ACCESS_KEY = "dyno-phi:early-access-dismissed";
 
 /** Icon-only copy button — used inline in tight table cells. */
 function CopyIconButton({ text }: { text: string }) {
@@ -135,7 +137,13 @@ export default function DatasetsPage() {
     if (typeof window === "undefined") return false;
     return localStorage.getItem(CLI_SETUP_KEY) === "true";
   });
+  const [earlyAccessDismissed, setEarlyAccessDismissed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem(EARLY_ACCESS_KEY) === "true";
+  });
   const [renamingId, setRenamingId] = useState<string | null>(null);
+
+  const quota = useQuota();
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["datasets"],
@@ -172,6 +180,11 @@ export default function DatasetsPage() {
     setCliSetupDismissed(true);
   }
 
+  function dismissEarlyAccess() {
+    localStorage.setItem(EARLY_ACCESS_KEY, "true");
+    setEarlyAccessDismissed(true);
+  }
+
   return (
     <div className="space-y-4 max-w-4xl">
       <div>
@@ -180,6 +193,51 @@ export default function DatasetsPage() {
           Filtering datasets — created via the CLI.
         </p>
       </div>
+
+      {/* Early access / quota banner — shown once per browser until dismissed */}
+      {!earlyAccessDismissed && (
+        <div className="flex items-start gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
+          <Sparkles className="size-4 shrink-0 mt-0.5 text-primary" />
+          <div className="flex-1 leading-relaxed">
+            <span className="font-medium">Early access — 100 free jobs included.</span>{" "}
+            <span className="text-muted-foreground">
+              {quota.status === "ok" ? (
+                <>
+                  You&apos;ve used{" "}
+                  <span className={quota.remaining <= 10 ? "text-amber-600 font-medium" : "font-medium"}>
+                    {quota.used}
+                  </span>
+                  {" "}of your {quota.max} jobs
+                  {quota.remaining <= 10 && quota.remaining > 0 && (
+                    <span className="ml-1 text-amber-600">({quota.remaining} remaining — running low)</span>
+                  )}
+                  {quota.remaining === 0 && (
+                    <span className="ml-1 text-destructive">(limit reached — contact us to continue)</span>
+                  )}
+                  .
+                </>
+              ) : (
+                <>Each design pipeline run counts as one job. Contact us when you need more.</>
+              )}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {quota.status === "ok" && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Zap className="size-3" />
+                <span className="tabular-nums">{quota.remaining}/{quota.max}</span>
+              </div>
+            )}
+            <button
+              onClick={dismissEarlyAccess}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Dismiss"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* CLI setup onboarding banner */}
       {!cliSetupDismissed && (

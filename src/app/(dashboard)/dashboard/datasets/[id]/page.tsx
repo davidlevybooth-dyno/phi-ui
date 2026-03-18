@@ -3,7 +3,7 @@
 import { use, useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, ArrowLeft, Check, ChevronLeft, ChevronRight, BarChart3, Copy, Download, FileText, Loader2, Pencil, Save } from "lucide-react";
+import { AlertCircle, Archive, ArrowLeft, Check, ChevronLeft, ChevronRight, BarChart3, Copy, Download, FileText, Loader2, Pencil, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -153,22 +153,40 @@ function parseOutputFile(
   return { filename, url };
 }
 
-/** Download button for a single dataset artifact. Fetches a fresh signed URL on click. */
+/**
+ * Fetch a URL as a Blob and trigger a browser download.
+ * This is the only reliable way to force a download for cross-origin signed URLs
+ * (GCS/S3) because the `download` attribute on <a> is ignored by browsers for
+ * cross-origin requests unless the server sets Content-Disposition: attachment.
+ */
+async function triggerBlobDownload(url: string, filename: string): Promise<void> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+  const blob = await res.blob();
+  const blobUrl = URL.createObjectURL(blob);
+  try {
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = filename;
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  } finally {
+    URL.revokeObjectURL(blobUrl);
+  }
+}
+
+/** Download button for a single dataset artifact. Fetches a fresh signed URL, then blobs it. */
 function DownloadFileButton({ artifactId, filename }: { artifactId: string; filename: string }) {
   const [loading, setLoading] = useState(false);
 
   async function handleClick() {
     setLoading(true);
     try {
-      const { download_url } = await getDownloadUrl(artifactId);
-      const a = document.createElement("a");
-      a.href = download_url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      const { download_url, filename: serverFilename } = await getDownloadUrl(artifactId);
+      await triggerBlobDownload(download_url, filename || serverFilename);
     } catch {
-      const { toast } = await import("sonner");
       toast.error(`Failed to download ${filename}`);
     } finally {
       setLoading(false);
@@ -185,6 +203,36 @@ function DownloadFileButton({ artifactId, filename }: { artifactId: string; file
       {loading
         ? <Loader2 className="size-3 animate-spin" />
         : <Download className="size-3" />}
+    </button>
+  );
+}
+
+/** Download button for a file where the signed URL is already known (e.g. job output_files). */
+function DownloadUrlButton({ url, filename }: { url: string; filename: string }) {
+  const [loading, setLoading] = useState(false);
+
+  async function handleClick(e: React.MouseEvent) {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await triggerBlobDownload(url, filename);
+    } catch {
+      toast.error(`Failed to download ${filename}`);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <button
+      onClick={handleClick}
+      disabled={loading}
+      className="flex items-center gap-1.5 text-xs text-primary hover:underline disabled:opacity-50"
+    >
+      {loading
+        ? <Loader2 className="size-3 shrink-0 animate-spin" />
+        : <Download className="size-3 shrink-0" />}
+      {filename}
     </button>
   );
 }
@@ -307,15 +355,7 @@ function JobCard({
                 const file = parseOutputFile(raw as Record<string, unknown>);
                 if (!file) return null;
                 return (
-                  <a
-                    key={i}
-                    href={file.url}
-                    download={file.filename}
-                    className="flex items-center gap-1.5 text-xs text-primary hover:underline"
-                  >
-                    <Download className="size-3 shrink-0" />
-                    {file.filename}
-                  </a>
+                  <DownloadUrlButton key={i} url={file.url} filename={file.filename} />
                 );
               })}
             </div>
@@ -533,6 +573,16 @@ export default function DatasetDetailPage({
         <Card className="p-4">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-sm font-medium">Files</h2>
+            <div className="flex items-center gap-2">
+              {/* Download all as ZIP — requires backend endpoint. See backend requirements below. */}
+              <button
+                disabled
+                title="Download all as ZIP — requires backend support (see notes)"
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground/50 cursor-not-allowed"
+              >
+                <Archive className="size-3" />
+                Download all
+              </button>
             {filesTotal > FILES_PAGE_SIZE && (
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
                 <span>
@@ -561,6 +611,7 @@ export default function DatasetDetailPage({
                 </Button>
               </div>
             )}
+            </div>
           </div>
           <ul className="text-xs font-mono space-y-1">
             {filesPageItems.map((f, i) => (
