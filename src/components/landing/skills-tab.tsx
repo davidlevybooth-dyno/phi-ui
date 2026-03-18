@@ -45,36 +45,37 @@ pip install dyno-phi`;
 const INSTALL_UV = `# Requires Python ≥ 3.9
 uv tool install dyno-phi`;
 
-const SETUP_API_KEY = `# Get your key at design.dynotx.com → Settings
+const SETUP_API_KEY = `# Get key at design.dynotx.com → Settings
 export DYNO_API_KEY="your_key_here"`;
 
-const CLI_QUICKSTART = `# Upload your binder candidate PDB / FASTA files
+const CLI_QUICKSTART = `# Upload binder PDB / FASTA files
 phi upload ./designs/
 
-# Run the filter pipeline with default thresholds
+# Run filter pipeline
 phi filter --preset default --wait
 
 # View ranked scores
 phi scores`;
 
-const SKILL_PLUGIN = `# In Claude Code, add the plugin from the marketplace:
+const SKILL_PLUGIN = `# Add from marketplace in Claude Code:
 /plugin marketplace add dynotx/phi-cli
 
-# Then install it:
+# Then install:
 /plugin install dyno-phi@phi-cli`;
 
-const SKILL_MANUAL = `# Download phi-skill.md and place it in your project's skills/ directory,
-# then reference it in your agent config:
-echo "Read skills/phi-skill.md before running phi commands." >> CLAUDE.md
-# Works with Claude Code, Cursor, Codex, or any agent that reads Skills.md files.`;
+const SKILL_MANUAL = `# Place phi-skill.md in your skills/ dir,
+# then add to your agent config:
+echo "Read skills/phi-skill.md" >> CLAUDE.md
+# Works with Claude Code, Cursor, Codex.`;
 
 const EXAMPLE_TUTORIAL = `# Example files and tutorial
 phi tutorial`;
 
-const EXAMPLE_RESEARCH = `# Understand the target before committing to a campaign
-phi research --question "What are the key binding hotspots on PD-L1?"`;
+const EXAMPLE_RESEARCH = `# Research the target first
+phi research --question \
+  "What are PD-L1 binding hotspots?"`;
 
-const EXAMPLE_FILTER = `# Score, calibrate, and rank — apply default or relaxed thresholds
+const EXAMPLE_FILTER = `# Filter with default thresholds
 phi filter --preset default --wait`;
 
 // ---------------------------------------------------------------------------
