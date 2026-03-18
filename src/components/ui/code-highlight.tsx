@@ -49,25 +49,25 @@ export function CodeHighlight({ code, lang, className }: CodeHighlightProps) {
   }, [code, lang, resolvedTheme]);
 
   if (!html) {
-    // Outer element is the scroll container; inner code expands to content width.
     return (
-      <div className={`overflow-x-auto rounded-md bg-muted ${className ?? ""}`}>
-        <pre className="p-4 text-xs leading-relaxed font-mono w-max min-w-full">
-          <code>{code}</code>
-        </pre>
-      </div>
+      <pre
+        className={`rounded-md bg-muted p-4 text-xs leading-relaxed font-mono ${className ?? ""}`}
+        style={{ overflowX: "auto", maxWidth: "100%", WebkitOverflowScrolling: "touch" }}
+      >
+        <code style={{ display: "block", width: "max-content", minWidth: "100%" }}>{code}</code>
+      </pre>
     );
   }
 
-  // Outer div is the scroll container. The injected Shiki <pre> can expand as
-  // wide as it needs to; the outer div clips and scrolls it on mobile.
   return (
     <div
-      className={`overflow-x-auto rounded-md text-xs leading-relaxed ${className ?? ""}`}
+      className={`rounded-md text-xs leading-relaxed ${className ?? ""}`}
+      style={{ overflowX: "auto", maxWidth: "100%", WebkitOverflowScrolling: "touch" }}
     >
       <div
         ref={codeRef}
-        className="w-max min-w-full [&>pre]:p-4 [&>pre]:rounded-md"
+        style={{ width: "max-content", minWidth: "100%" }}
+        className="[&>pre]:p-4 [&>pre]:rounded-md"
         dangerouslySetInnerHTML={{ __html: html }}
       />
     </div>
