@@ -24,7 +24,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Check, X } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Check, Copy, X } from "lucide-react";
 import { getDataset, getDatasetScores } from "@/lib/api/upload";
 import { fetchScoresCsvPageFromUrl } from "@/lib/api/assets";
 import { useAuth } from "@/lib/auth-context";
@@ -43,6 +48,94 @@ import {
 import { MetricHistogram } from "@/components/shared/MetricHistogram";
 import type { MetricHistogramDataPoint } from "@/components/shared/MetricHistogram";
 import { toast } from "sonner";
+
+/** Copy-to-clipboard hook with 2-second reset. */
+function useCopy(text: string) {
+  const [copied, setCopied] = useState(false);
+  function copy() {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+  return { copied, copy };
+}
+
+/**
+ * Design name cell — shows a truncated sequence preview (or design name) as a
+ * clickable button. Opens a Popover with the full name, index, and copyable sequence.
+ * Mirrors the DesignCell pattern from the landing filter explorer.
+ */
+function DesignCell({ row }: { row: ScoresCsvRow }) {
+  const hasSeq = !!row.binder_sequence;
+  const preview = hasSeq
+    ? row.binder_sequence!.slice(0, 14) + "…"
+    : (row.design_name?.length > 20
+        ? row.design_name.slice(0, 18) + "…"
+        : row.design_name || "—");
+  const { copied, copy } = useCopy(row.binder_sequence ?? row.design_name ?? "");
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          className="font-mono text-xs text-left hover:text-foreground text-foreground/80 transition-colors max-w-[160px] truncate"
+          title={hasSeq ? row.binder_sequence : row.design_name}
+        >
+          {preview}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        side="right"
+        align="start"
+        className="w-80 p-3 space-y-2.5 text-xs"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Name */}
+        {row.design_name && (
+          <div className="space-y-0.5">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Name</p>
+            <p className="font-medium break-all">{row.design_name}</p>
+          </div>
+        )}
+        {/* Index */}
+        {row.design_index != null && (
+          <div className="space-y-0.5">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Index</p>
+            <p className="font-mono text-muted-foreground">{row.design_index}</p>
+          </div>
+        )}
+        {/* Sequence */}
+        {hasSeq ? (
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                Sequence <span className="normal-case">({row.binder_sequence!.length} aa)</span>
+              </p>
+              <button
+                onClick={copy}
+                className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {copied ? (
+                  <><Check className="size-3 text-green-600" /> Copied</>
+                ) : (
+                  <><Copy className="size-3" /> Copy</>
+                )}
+              </button>
+            </div>
+            <p className="font-mono text-[11px] break-all bg-muted/60 rounded p-2 leading-relaxed select-all">
+              {row.binder_sequence}
+            </p>
+          </div>
+        ) : (
+          <p className="text-[10px] text-muted-foreground italic">
+            No sequence available — pipeline may not have included a FASTA step.
+          </p>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 /**
  * All sliders are oriented so that dragging RIGHT = more permissive (less strict).
@@ -414,7 +507,7 @@ export default function DatasetScoresPage({
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-xs w-[180px]">Design name</TableHead>
+                      <TableHead className="text-xs w-[180px]">Design</TableHead>
                       <TableHead className="text-xs w-16">Status</TableHead>
                       <TableHead className="text-xs">pLDDT</TableHead>
                       <TableHead className="text-xs">pTM</TableHead>
@@ -434,8 +527,8 @@ export default function DatasetScoresPage({
                         key={`${row.design_name}-${page}-${i}`}
                         className={cn(!passesFilters && "opacity-40")}
                       >
-                        <TableCell className="font-mono text-xs">
-                          {row.design_name || "—"}
+                        <TableCell>
+                          <DesignCell row={row} />
                         </TableCell>
                         <TableCell>
                           {passesFilters ? (

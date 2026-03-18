@@ -24,6 +24,8 @@ function num(s: string | undefined): number | undefined {
  */
 export type ScoresCsvRow = {
   design_name: string;
+  design_index: number | undefined;
+  binder_sequence: string | undefined;
   esmfold_plddt: number | undefined;
   pass_plddt: number | undefined;
   af2_ptm: number | undefined;
@@ -47,9 +49,16 @@ const optionalNum = z
   .union([z.string(), z.number()])
   .transform((v) => (typeof v === "string" ? num(v) : v));
 
+const optionalStr = z
+  .string()
+  .optional()
+  .transform((v) => (v === "" ? undefined : v));
+
 export const ScoresCsvRowSchema = z
   .object({
     design_name: z.string().default(""),
+    design_index: optionalNum,
+    binder_sequence: optionalStr,
     esmfold_plddt: optionalNum,
     pass_plddt: optionalNum,
     af2_ptm: optionalNum,

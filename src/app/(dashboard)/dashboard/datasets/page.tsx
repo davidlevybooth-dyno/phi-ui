@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, Copy, Database, Info, KeyRound, Pencil, Sparkles, X, Zap } from "lucide-react";
+import { Check, Copy, Database, Info, KeyRound, Pencil, X, Zap } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
@@ -196,8 +196,8 @@ export default function DatasetsPage() {
 
       {/* Early access / quota banner — shown once per browser until dismissed */}
       {!earlyAccessDismissed && (
-        <div className="flex items-start gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
-          <Sparkles className="size-4 shrink-0 mt-0.5 text-primary" />
+        <div className="flex items-start gap-3 rounded-lg border bg-muted/40 px-4 py-3 text-sm">
+          <Info className="size-4 shrink-0 mt-0.5 text-muted-foreground" />
           <div className="flex-1 leading-relaxed">
             <span className="font-medium">Early access — 100 free jobs included.</span>{" "}
             <span className="text-muted-foreground">
@@ -217,7 +217,9 @@ export default function DatasetsPage() {
                   .
                 </>
               ) : (
-                <>Each design pipeline run counts as one job. Contact us when you need more.</>
+                <>Each GPU job counts against this limit.{" "}
+                <a href="mailto:david.levy-booth@dynotx.com" className="underline underline-offset-2 hover:text-foreground transition-colors">Contact us</a>
+                {" "}when you need more.</>
               )}
             </span>
           </div>
