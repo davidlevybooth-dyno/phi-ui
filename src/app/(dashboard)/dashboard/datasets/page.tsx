@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, Copy, Database, Info, KeyRound, Pencil, X, Zap } from "lucide-react";
+import { Check, Copy, Database, Info, KeyRound, Pencil, X } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
@@ -225,10 +225,9 @@ export default function DatasetsPage() {
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {quota.status === "ok" && (
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Zap className="size-3" />
-                <span className="tabular-nums">{quota.remaining}/{quota.max}</span>
-              </div>
+              <span className="text-xs text-muted-foreground tabular-nums">
+                {quota.remaining}/{quota.max}
+              </span>
             )}
             <button
               onClick={dismissEarlyAccess}

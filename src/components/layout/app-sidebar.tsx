@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, MessageSquare, Settings, History, Zap } from "lucide-react";
+import { LayoutDashboard, MessageSquare, Settings, History } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -38,8 +38,7 @@ function QuotaFooter() {
   return (
     <div className="px-3 py-3 border-t border-sidebar-border group-data-[collapsible=icon]:hidden">
       <div className="flex items-center justify-between mb-1.5">
-        <span className="flex items-center gap-1 text-[11px] font-medium text-sidebar-foreground/70">
-          <Zap className="size-3" />
+        <span className="text-[11px] font-medium text-sidebar-foreground/70">
           Early access
         </span>
         <span className={`text-[11px] tabular-nums font-medium ${low ? "text-amber-500" : "text-sidebar-foreground/70"}`}>

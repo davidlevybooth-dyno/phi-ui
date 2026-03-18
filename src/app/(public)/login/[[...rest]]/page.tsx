@@ -121,8 +121,8 @@ export default function LoginPage() {
                     htmlFor="contact-optin"
                     className="text-muted-foreground leading-relaxed cursor-pointer"
                   >
-                    Dyno may contact me to learn more about my use case and how to
-                    improve the platform. <span className="text-foreground/70">(Optional)</span>
+                    I&apos;d like to share my experience with the Dyno team to help shape
+                    Phi for my use cases. <span className="text-foreground/70">(Optional)</span>
                   </label>
                 </div>
               </div>

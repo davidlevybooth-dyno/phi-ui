@@ -51,7 +51,7 @@ export function CodeHighlight({ code, lang, className }: CodeHighlightProps) {
   if (!html) {
     return (
       <pre
-        className={`overflow-x-auto rounded-md bg-muted p-4 text-xs leading-relaxed font-mono ${className ?? ""}`}
+        className={`overflow-x-auto max-w-full rounded-md bg-muted p-4 text-xs leading-relaxed font-mono ${className ?? ""}`}
       >
         <code>{code}</code>
       </pre>
@@ -61,7 +61,7 @@ export function CodeHighlight({ code, lang, className }: CodeHighlightProps) {
   return (
     <div
       ref={codeRef}
-      className={`overflow-x-auto rounded-md text-xs leading-relaxed [&>pre]:p-4 [&>pre]:rounded-md [&>pre]:overflow-x-auto ${className ?? ""}`}
+      className={`min-w-0 w-full rounded-md text-xs leading-relaxed [&>pre]:p-4 [&>pre]:rounded-md [&>pre]:overflow-x-auto [&>pre]:max-w-full ${className ?? ""}`}
       dangerouslySetInnerHTML={{ __html: html }}
     />
   );

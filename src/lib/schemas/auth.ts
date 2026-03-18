@@ -18,7 +18,7 @@ export const QuotaUsageSchema = z.object({
   user_id: z.string().optional(),
   scope: z.string().optional(),
   scope_id: z.string().optional(),
-  max_jobs: z.number().int(),
+  max_total_jobs: z.number().int(),
   max_concurrent_jobs: z.number().int().optional(),
   current_total_jobs: z.number().int(),
   current_concurrent_jobs: z.number().int().optional(),

@@ -14,14 +14,12 @@ export function getAuthMe(): Promise<AuthMeResponse> {
 
 /**
  * Fetch the current user's job quota and usage.
- * Endpoint: GET /v1/phi/admin/quotas/user/{user_id}/usage
- *
- * The backend enforces that a user can only query their own usage unless they
- * are an admin. Returns 403 if the requester's user_id does not match the path
- * parameter. Callers should handle 403 gracefully (show defaults without count).
+ * Endpoint: GET /v1/phi/auth/me/quota
+ * Authenticated with the user's own Clerk JWT or ak_ key — no admin access needed.
+ * Always returns the quota for whoever's token is on the request.
  */
-export function getUserQuotaUsage(userId: string): Promise<QuotaUsage> {
-  return apiGet<unknown>(
-    `/v1/phi/admin/quotas/user/${encodeURIComponent(userId)}/usage`
-  ).then((data) => QuotaUsageSchema.parse(data));
+export function getMyQuota(): Promise<QuotaUsage> {
+  return apiGet<unknown>("/v1/phi/auth/me/quota").then((data) =>
+    QuotaUsageSchema.parse(data)
+  );
 }
