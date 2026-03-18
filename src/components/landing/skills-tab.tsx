@@ -68,7 +68,7 @@ const SKILL_MANUAL = `# Download phi-skill.md and place it in your project's ski
 echo "Read skills/phi-skill.md before running phi commands." >> CLAUDE.md
 # Works with Claude Code, Cursor, Codex, or any agent that reads Skills.md files.`;
 
-const EXAMPLE_TUTORIAL = `# Download examples and print a getting-started guide
+const EXAMPLE_TUTORIAL = `# Example files and tutorial
 phi tutorial`;
 
 const EXAMPLE_RESEARCH = `# Understand the target before committing to a campaign
