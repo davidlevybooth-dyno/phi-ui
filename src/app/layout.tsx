@@ -7,6 +7,7 @@ import { QueryProvider } from "@/providers/query-provider";
 import { AuthProvider } from "@/lib/auth-context";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Analytics } from "@vercel/analytics/next";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -35,6 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <TooltipProvider>
                   {children}
                   <Toaster />
+                  <Analytics />
                 </TooltipProvider>
               </AuthProvider>
             </QueryProvider>
