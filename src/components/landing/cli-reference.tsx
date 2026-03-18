@@ -86,7 +86,7 @@ function Hr() {
 // ---------------------------------------------------------------------------
 
 export const CLI_COPY_TEXT = `# Phi CLI Reference
-Version: 0.1.0 · Package: dyno-phi · Requires: Python ≥ 3.9
+Version: 0.2.1· Package: dyno-phi · Requires: Python ≥ 3.9
 
 ## Installation & authentication
 \`\`\`
