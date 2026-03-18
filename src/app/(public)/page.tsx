@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DynoLogo } from "@/components/shared/dyno-logo";
 import { FEATURES } from "@/lib/config/features";
-import { ModelGrid } from "@/components/landing/model-grid";
 import { AccessTab } from "@/components/landing/skills-tab";
 import { FilterExplorer } from "@/components/landing/filter-explorer";
 import { DocsSection } from "@/components/landing/docs-section";
@@ -41,7 +40,7 @@ const WORKFLOW_STEPS = [
   },
 ];
 
-const TABS = ["access", "docs", "models", "filters"] as const;
+const TABS = ["access", "docs", "filters"] as const;
 type TabId = (typeof TABS)[number];
 
 function hashToTab(hash: string): TabId {
@@ -184,7 +183,6 @@ export default function LandingPage() {
           <TabsList className="mb-8 mx-auto flex w-full max-w-md">
             <TabsTrigger value="access" className="flex-1">Access</TabsTrigger>
             <TabsTrigger value="docs" className="flex-1">Docs</TabsTrigger>
-            <TabsTrigger value="models" className="flex-1">Models</TabsTrigger>
             <TabsTrigger value="filters" className="flex-1">Filters</TabsTrigger>
           </TabsList>
         </Tabs>
@@ -199,7 +197,6 @@ export default function LandingPage() {
           >
             {activeTab === "access" && <AccessTab />}
             {activeTab === "docs" && <DocsSection />}
-            {activeTab === "models" && <ModelGrid />}
             {activeTab === "filters" && <FilterExplorer />}
           </motion.div>
         </AnimatePresence>

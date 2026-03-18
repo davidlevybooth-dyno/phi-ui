@@ -3,7 +3,7 @@
 import { use, useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, ArrowLeft, Check, ChevronLeft, ChevronRight, BarChart3, Copy, FileText, Loader2, Pencil, Save } from "lucide-react";
+import { AlertCircle, ArrowLeft, Check, ChevronLeft, ChevronRight, BarChart3, Copy, Download, FileText, Loader2, Pencil, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -136,6 +136,21 @@ function EditableName({
   );
 }
 
+/** Parse a raw output_files entry into a typed download record. Returns null if unusable. */
+function parseOutputFile(
+  raw: Record<string, unknown>
+): { filename: string; url: string } | null {
+  const filename = typeof raw.filename === "string" ? raw.filename : null;
+  const url = typeof raw.download_url === "string" ? raw.download_url : null;
+  if (!filename || !url) return null;
+  try {
+    new URL(url);
+  } catch {
+    return null;
+  }
+  return { filename, url };
+}
+
 const TERMINAL_STATUSES = new Set(["completed", "failed", "cancelled"]);
 
 const STATUS_STYLES: Record<string, string> = {
@@ -173,9 +188,8 @@ function JobCard({
 
   const { data: liveStatus } = useQuery({
     queryKey: ["job-status", job.job_id],
-    queryFn: () => getJobStatus(job.job_id),
-    // Always fetch at least once — even for completed jobs — to trigger the
-    // output_files artifact backfill described in the backend integration guide (§3).
+    // include_assets=true triggers output_files backfill on the backend (integration guide §3).
+    queryFn: () => getJobStatus(job.job_id, { includeAssets: true }),
     staleTime: 0,
     refetchInterval: (query) => {
       const status = query.state.data?.status ?? job.status;
@@ -245,6 +259,27 @@ function JobCard({
             <div className="mt-2 flex items-start gap-1.5 text-xs text-destructive">
               <AlertCircle className="size-3.5 mt-0.5 shrink-0" />
               <span className="break-all">{error}</span>
+            </div>
+          )}
+
+          {/* Output file downloads */}
+          {effectiveStatus === "completed" && liveStatus?.output_files && liveStatus.output_files.length > 0 && (
+            <div className="mt-2 space-y-1">
+              {liveStatus.output_files.map((raw, i) => {
+                const file = parseOutputFile(raw as Record<string, unknown>);
+                if (!file) return null;
+                return (
+                  <a
+                    key={i}
+                    href={file.url}
+                    download={file.filename}
+                    className="flex items-center gap-1.5 text-xs text-primary hover:underline"
+                  >
+                    <Download className="size-3 shrink-0" />
+                    {file.filename}
+                  </a>
+                );
+              })}
             </div>
           )}
         </div>
@@ -505,11 +540,19 @@ export default function DatasetDetailPage({
                   </div>
                 )}
               </div>
-              <Button asChild size="sm" variant="default">
-                <Link href={`/dashboard/datasets/${id}/scores`}>
-                  View scores table
-                </Link>
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button asChild size="sm" variant="default">
+                  <Link href={`/dashboard/datasets/${id}/scores`}>
+                    View scores table
+                  </Link>
+                </Button>
+                <Button asChild size="sm" variant="outline" className="gap-1.5">
+                  <a href={datasetScores.download_url} download={datasetScores.filename ?? "scores.csv"}>
+                    <Download className="size-3.5" />
+                    Download CSV
+                  </a>
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="space-y-2">
