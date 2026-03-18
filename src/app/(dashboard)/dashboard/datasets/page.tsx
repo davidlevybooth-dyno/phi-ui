@@ -177,7 +177,7 @@ export default function DatasetsPage() {
       <div>
         <h1 className="text-xl font-semibold">Datasets</h1>
         <p className="text-sm text-muted-foreground mt-0.5">
-          Input data for design pipelines — created here or via the CLI.
+          Filtering datasets — created via the CLI.
         </p>
       </div>
 
